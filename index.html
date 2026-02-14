@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>Reels</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <style>
     /* CSS ASLI ANDA - TIDAK BERUBAH */
     * { box-sizing: border-box; }
@@ -55,15 +54,11 @@
     <div class="status" id="status">Status: idle</div>
     <div id="download"></div>
   </div>
-
   <div class="panel right">
     <canvas id="canvas" width="1080" height="1920"></canvas>
   </div>
 
 <script>
-/* ============================================================
-   BASE SETUP - ASLI DARI KODE ANDA
-   ============================================================ */
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const LOGICAL_WIDTH = 1080;
@@ -99,7 +94,6 @@ const READING_WORDS_PER_SEC = 3.0;
 
 function setStatus(t) { statusEl.textContent = 'Status: ' + t; }
 
-/* FUNGSI WRAP & TOKEN ASLI ANDA */
 function wrapText(text, maxWidth, fontSpec) {
   if (fontSpec) ctx.font = fontSpec;
   const paragraphs = text.split(/\r?\n/);
@@ -130,7 +124,6 @@ function tokenizeHighlighted(text) {
   flush(); return tokens;
 }
 
-/* PERBAIKAN: Memastikan highlight tidak muncul di kiri teks sebelum waktunya */
 function drawLineFromTokens(tokens, x, y, normalColor, highlightBg, progress, clipHigh, margin) {
   const full = tokens.map(t => t.text).join('');
   let index = 0, first = null, last = null;
@@ -142,22 +135,25 @@ function drawLineFromTokens(tokens, x, y, normalColor, highlightBg, progress, cl
     index += t.text.length;
   }
   
-  // Hanya gambar highlight jika sapuan sudah melewati margin kiri
   if (first !== null && clipHigh > margin) {
-    ctx.save();
-    ctx.beginPath(); 
-    ctx.rect(margin, 0, clipHigh - margin, LOGICAL_HEIGHT); // Clip ketat mulai dari margin
-    ctx.clip();
-    
     const before = full.slice(0, first);
     const inside = full.slice(first, last);
     const wBefore = ctx.measureText(before).width;
     const wInside = ctx.measureText(inside).width;
     const visible = wInside * progress;
-    
-    ctx.fillStyle = highlightBg;
-    ctx.fillRect(x + wBefore - 4, y - 42, visible + 8, 54);
-    ctx.restore();
+
+    // Hanya gambar jika lebar highlight > 0 untuk menghindari artefak di kiri
+    if (visible > 0) {
+      ctx.save();
+      ctx.beginPath(); 
+      // Clip dimulai tepat dari margin agar tidak bocor ke kiri
+      ctx.rect(margin, 0, Math.max(0, clipHigh - margin), LOGICAL_HEIGHT);
+      ctx.clip();
+      
+      ctx.fillStyle = highlightBg;
+      ctx.fillRect(x + wBefore - 4, y - 42, visible + 8, 54);
+      ctx.restore();
+    }
   }
   
   ctx.fillStyle = normalColor;
@@ -183,7 +179,6 @@ function drawWrappedRichParagraph(text, x, yStart, maxWidth, lineGap, normal, hi
   return { y, linesUsed: lines.length };
 }
 
-/* FUNGSI LAINNYA TETAP ASLI */
 function rebuildTitleLayout() {
   const textWidth = 830;
   titleLayout.upperLines = wrapText(upperEl.value.trim(), textWidth, "700 34px 'PlusJakartaCustom'");
@@ -255,7 +250,8 @@ function drawBodyPage(pageIndex, t) {
 
   ctx.save();
   ctx.globalAlpha = Math.min(1, t / BODY_FADE_IN);
-  ctx.beginPath(); ctx.rect(margin, 0, clipText - margin, 1920); ctx.clip();
+  // Clip teks utama dimulai dari margin agar tidak bocor
+  ctx.beginPath(); ctx.rect(margin, 0, Math.max(0, clipText - margin), 1920); ctx.clip();
   
   ctx.font = "700 54px 'PlusJakartaCustom'"; ctx.textAlign = 'left';
   let totalUnits = 0; lines.forEach(l => totalUnits += estimateLinesForParagraph(l, textWidth));
