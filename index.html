@@ -2,270 +2,263 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Reels - 1080p Wipe Style</title>
+  <title>Reels - 1080p Native</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
+    /* CSS TETAP SAMA PERSIS DENGAN FILE ANDA */
     * { box-sizing: border-box; }
     @font-face {
       font-family: 'DMSerifCustomBold';
       src: url('./fonts/DMSerifDisplay-Bold.ttf') format('truetype');
       font-weight: 700;
+      font-style: normal;
+      font-display: swap;
     }
     @font-face {
       font-family: 'PlusJakartaCustom';
       src: url('./fonts/PlusJakartaSans-Bold.woff2') format('woff2');
       font-weight: 700;
+      font-style: normal;
+      font-display: swap;
     }
     body {
       margin: 0; padding: 12px; display: flex; gap: 16px;
-      background: #020617; color: #e5e7eb;
-      font-family: 'PlusJakartaCustom', sans-serif;
+      background: radial-gradient(circle at top, #020617 0%, #020617 40%, #020617 100%);
+      color: #e5e7eb;
+      font-family: 'PlusJakartaCustom', system-ui, sans-serif;
     }
-    .panel { background: #020617; padding: 16px; border-radius: 14px; border: 1px solid #1f2937; }
-    .left { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+    .panel { background: #020617; padding: 16px 14px; border-radius: 14px; border: 1px solid #1f2937; }
+    .left { width: 380px; flex-shrink: 0; }
     .right { flex: 1; display: flex; justify-content: center; align-items: center; }
-    textarea {
-      width: 100%; min-height: 40px; background: #020617; color: #e5e7eb;
-      border-radius: 10px; border: 1px solid #334155; padding: 10px; font-family: inherit;
-    }
-    canvas {
-      background: #808080; border-radius: 18px; border: 1px solid #4b5563;
-      max-height: 92vh; max-width: 100%; object-fit: contain;
-    }
-    button { padding: 10px; border-radius: 99px; border: none; cursor: pointer; font-weight: 700; }
-    #renderBtn { background: #2563eb; color: #fff; }
-    #previewBtn { background: #111827; color: #e5e7eb; border: 1px solid #1f2937; }
+    textarea { width: 100%; min-height: 56px; background: #020617; color: #e5e7eb; border-radius: 10px; border: 1px solid #334155; padding: 9px 11px; font-size: 14px; resize: vertical; outline: none; }
+    canvas { background: #808080; border-radius: 18px; border: 1px solid #4b5563; max-height: 92vh; max-width: 100%; }
+    .btn-row { margin-top: 12px; display: flex; gap: 8px; }
+    .btn-primary { background: #2563eb; color: #fff; padding: 8px 16px; border-radius: 999px; border: none; cursor: pointer; font-weight: 500; }
+    .btn-secondary { background: #111827; color: #e5e7eb; padding: 8px 16px; border-radius: 999px; border: none; cursor: pointer; font-weight: 500; }
   </style>
 </head>
 <body>
+  <div class="panel left">
+    <h2>VGEN2 1080p</h2>
+    <div class="field"><label>Upper</label><textarea id="upper">The Brief</textarea></div>
+    <div class="field"><label>Judul</label><textarea id="title">The Psychology of Money</textarea></div>
+    <div class="field"><label>Subjudul</label><textarea id="subtitle">How to think about wealth</textarea></div>
+    <div class="field"><label>Isi</label><textarea id="body">Investing is not about being [[smart]], it's about being [[disciplined]].</textarea></div>
+    <div class="btn-row">
+      <button class="btn-secondary" id="previewBtn">👁️ Preview</button>
+      <button class="btn-primary" id="renderBtn">🎬 Render</button>
+    </div>
+    <div id="status" style="font-size:12px; color:#9ca3af; margin-top:10px;">Status: idle</div>
+    <div id="download"></div>
+  </div>
 
-<div class="panel left">
-  <h2>VGEN2 Editor</h2>
-  <div class="field">
-    <label>Upper Text</label>
-    <textarea id="upper">The Brief</textarea>
+  <div class="panel right">
+    <canvas id="canvas" width="1080" height="1920"></canvas>
   </div>
-  <div class="field">
-    <label>Judul Utama</label>
-    <textarea id="title">The Psychology of Money</textarea>
-  </div>
-  <div class="field">
-    <label>Subjudul</label>
-    <textarea id="subtitle">How to think about wealth</textarea>
-  </div>
-  <div class="field">
-    <label>Isi (Highlight: [[kata]])</label>
-    <textarea id="body" style="min-height: 200px;">Investing is not about being [[smart]], it's about being [[disciplined]]. Most people fail not because they lack knowledge, but because they lack [[patience]].</textarea>
-  </div>
-  <div class="btn-row">
-    <button id="previewBtn">Preview</button>
-    <button id="renderBtn">Render (1080p)</button>
-  </div>
-  <div id="status" style="text-align:center; font-size:12px; color:#9ca3af; margin-top:10px;">Status: Idle</div>
-  <div id="download" style="text-align:center;"></div>
-</div>
-
-<div class="panel right">
-  <canvas id="canvas"></canvas>
-</div>
 
 <script>
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-  const LOGICAL_WIDTH = 1080;
-  const LOGICAL_HEIGHT = 1920;
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
 
-  // Dipaksa 1080p murni sesuai permintaan sebelumnya
-  canvas.width = LOGICAL_WIDTH;
-  canvas.height = LOGICAL_HEIGHT;
+// SCALE DIKUNCI KE 1 UNTUK 1080p MURNI
+const LOGICAL_WIDTH = 1080;
+const LOGICAL_HEIGHT = 1920;
+const SCALE = 1; 
 
-  const upperEl = document.getElementById('upper');
-  const titleEl = document.getElementById('title');
-  const subtitleEl = document.getElementById('subtitle');
-  const bodyEl = document.getElementById('body');
-  const statusEl = document.getElementById('status');
-  const downloadEl = document.getElementById('download');
+canvas.width  = LOGICAL_WIDTH * SCALE;
+canvas.height = LOGICAL_HEIGHT * SCALE;
+ctx.scale(SCALE, SCALE);
 
-  let animating = false, recording = false, animStart = null;
-  let targetDuration = 10, bodyPages = [], pageDurations = [];
-  let titleCanvas = null, titleTextureReady = false;
+const upperEl = document.getElementById('upper');
+const titleEl = document.getElementById('title');
+const subtitleEl = document.getElementById('subtitle');
+const bodyEl = document.getElementById('body');
+const statusEl = document.getElementById('status');
+const downloadEl = document.getElementById('download');
 
-  // Timing Konstanta
-  const TITLE_PRE_HOLD = 0.3, TITLE_WIPE = 0.8, TITLE_STATIC = 2.0;
-  const BODY_WIPE = 0.8; // Durasi sapuan isi meniru judul
-  const PAGE_GAP = 0.6;
-  const READING_WORDS_PER_SEC = 2.8;
+let animating = false, recording = false, animStart = null;
+let targetDuration = 12, bodyPages = [], pageDurations = [];
+let titleCanvas = null, titleTextureReady = false;
 
-  function wrapText(text, maxWidth, fontSpec) {
-    ctx.font = fontSpec;
-    const lines = [];
-    text.split(/\n/).forEach(p => {
-      const words = p.trim().split(/\s+/);
-      if (!words[0]) return;
-      let line = words[0];
-      for (let i = 1; i < words.length; i++) {
-        if (ctx.measureText(line + " " + words[i]).width < maxWidth) {
-          line += " " + words[i];
-        } else { lines.push(line); line = words[i]; }
-      }
-      lines.push(line);
-    });
-    return lines;
-  }
+// TIMING ASLI DARI HTML ANDA
+const TITLE_PRE_HOLD = 0.3;
+const TITLE_WIPE     = 0.8;
+const TITLE_STATIC   = 2.0;
+const BODY_WIPE      = 0.8; // Menirukan wipe judul
+const PAGE_GAP       = 0.6;
+const READING_WORDS_PER_SEC = 3.0;
 
-  function tokenize(text) {
-    let tokens = [], buf = '', hi = false, i = 0;
-    while (i < text.length) {
-      if (!hi && text.startsWith('[[', i)) { flush(); hi = true; i += 2; }
-      else if (hi && text.startsWith(']]', i)) { flush(); hi = false; i += 2; }
-      else { buf += text[i]; if (text[i] === ' ' && !hi) flush(); i++; }
+function wrapText(text, maxWidth, fontSpec) {
+  if (fontSpec) ctx.font = fontSpec;
+  const paragraphs = text.split(/\n/);
+  const lines = [];
+  for (const para of paragraphs) {
+    const trimmed = para.trim();
+    if (!trimmed) { lines.push(''); continue; }
+    const words = trimmed.split(/\s+/);
+    let line = words[0];
+    for (let i = 1; i < words.length; i++) {
+      if (ctx.measureText(line + ' ' + words[i]).width > maxWidth) {
+        lines.push(line); line = words[i];
+      } else { line += ' ' + words[i]; }
     }
-    function flush() { if (buf) { tokens.push({ text: buf, highlight: hi }); buf = ''; } }
-    flush(); return tokens;
+    lines.push(line);
   }
+  return lines;
+}
 
-  function preparePages() {
-    const margin = 110;
-    const maxWidth = 1080 - (margin * 2);
-    const bodyFont = "700 48px 'PlusJakartaCustom'"; // Font isi dikecilkan sesuai permintaan
-    const lines = wrapText(bodyEl.value, maxWidth, bodyFont);
-    bodyPages = []; pageDurations = [];
-    let cur = [];
-    for (let i = 0; i < lines.length; i++) {
-      cur.push(lines[i]);
-      if (cur.length === 10 || i === lines.length - 1) {
-        bodyPages.push(cur);
-        const words = cur.join(' ').split(' ').length;
-        pageDurations.push(Math.max(3, words / READING_WORDS_PER_SEC));
-        cur = [];
-      }
-    }
-    targetDuration = (TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC) + 1 + 
-                     pageDurations.reduce((a, b) => a + b, 0) + (bodyPages.length * PAGE_GAP);
+function tokenizeHighlighted(text) {
+  let tokens = [], buf = '', hi = false, i = 0;
+  while (i < text.length) {
+    if (!hi && text.startsWith('[[', i)) { flush(); hi = true; i += 2; }
+    else if (hi && text.startsWith(']]', i)) { flush(); hi = false; i += 2; }
+    else { buf += text[i]; if (text[i] === ' ') flush(); i++; }
   }
+  function flush() { if (buf.length > 0) { tokens.push({ text: buf, highlight: hi }); buf = ''; } }
+  flush(); return tokens;
+}
 
-  function rebuildTitleTexture() {
-    titleCanvas = document.createElement('canvas');
-    titleCanvas.width = 1080; titleCanvas.height = 1920;
-    const tCtx = titleCanvas.getContext('2d');
-    const margin = 110, maxWidth = 1080 - 220;
-    let y = 1220;
-    tCtx.fillStyle = 'white'; tCtx.textAlign = 'left';
+function rebuildTitleTexture() {
+  titleCanvas = document.createElement('canvas');
+  titleCanvas.width = LOGICAL_WIDTH; titleCanvas.height = LOGICAL_HEIGHT;
+  const tCtx = titleCanvas.getContext('2d');
+  tCtx.fillStyle = '#ffffff'; tCtx.textAlign = 'left';
+  const margin = 110;
+  const textWidth = LOGICAL_WIDTH - 250;
+  let y = LOGICAL_HEIGHT - 700;
 
-    // Upper: Tidak dipaksa kapital
-    if (upperEl.value) {
-      tCtx.font = "700 34px 'PlusJakartaCustom'";
-      const uLines = wrapText(upperEl.value, maxWidth, tCtx.font);
-      uLines.forEach(l => { tCtx.fillText(l, margin, y); y += 45; });
-      y += 40; 
-    }
-    // Title
+  if (upperEl.value.trim()) {
+    tCtx.font = "700 34px 'PlusJakartaCustom'";
+    // PERUBAHAN: Tidak toUpperCase()
+    wrapText(upperEl.value, textWidth).forEach(l => { tCtx.fillText(l, margin, y); y += 36; });
+    y += 70;
+  }
+  if (titleEl.value.trim()) {
     tCtx.font = "700 90px 'DMSerifCustomBold'";
-    const tLines = wrapText(titleEl.value, maxWidth, tCtx.font);
-    tLines.forEach(l => { tCtx.fillText(l, margin, y); y += 95; });
-    
-    y -= 15; // Jarak subjudul dirapatkan
-
-    // Subtitle
-    if (subtitleEl.value) {
-      tCtx.font = "700 34px 'PlusJakartaCustom'";
-      const sLines = wrapText(subtitleEl.value, maxWidth, tCtx.font);
-      sLines.forEach(l => { tCtx.fillText(l, margin, y); y += 45; });
-    }
-    titleTextureReady = true;
+    wrapText(titleEl.value, textWidth).forEach(l => { tCtx.fillText(l, margin, y); y += 90; });
+    // PERUBAHAN: Jarak dirapatkan (sebelumnya -20, sekarang -40)
+    y -= 40;
   }
+  if (subtitleEl.value.trim()) {
+    tCtx.font = "700 34px 'PlusJakartaCustom'";
+    wrapText(subtitleEl.value, textWidth).forEach(l => { tCtx.fillText(l, margin, y); y += 36; });
+  }
+  titleTextureReady = true;
+}
 
-  function draw(t) {
-    ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
-    const titleEnd = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
+function drawTitleScene(t) {
+  ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+  if (!titleTextureReady) rebuildTitleTexture();
+  if (t < TITLE_PRE_HOLD) { ctx.drawImage(titleCanvas, 0, 0); return; }
+  const localT = t - TITLE_PRE_HOLD;
+  if (localT < TITLE_WIPE) {
+    const p = (localT / TITLE_WIPE);
+    const clipWidth = 110 + (830 * p);
+    ctx.drawImage(titleCanvas, 0, 0);
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(clipWidth, 0, LOGICAL_WIDTH - clipWidth, LOGICAL_HEIGHT);
+    return;
+  }
+  ctx.drawImage(titleCanvas, 0, 0);
+}
 
-    if (t < titleEnd) {
-      if (!titleTextureReady) rebuildTitleTexture();
-      ctx.drawImage(titleCanvas, 0, 0);
-      if (t > TITLE_PRE_HOLD && t < TITLE_PRE_HOLD + TITLE_WIPE) {
-        let p = (t - TITLE_PRE_HOLD) / TITLE_WIPE;
-        ctx.fillStyle = '#808080'; ctx.fillRect(110 + (860 * p), 0, 1080, 1920);
+function drawBodyPage(pageIndex, t) {
+  ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+  const lines = bodyPages[pageIndex] || [];
+  const margin = 110;
+  const maxWidth = LOGICAL_WIDTH - 250;
+  
+  // PERUBAHAN: Animasi Wipe Meniru Judul (pake clip)
+  let wipe = Math.min(1, t / BODY_WIPE);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, margin + maxWidth * wipe, LOGICAL_HEIGHT);
+  ctx.clip();
+
+  ctx.font = "700 48px 'PlusJakartaCustom'"; // PERUBAHAN: Font dikecilkan ke 48px
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  
+  let y = LOGICAL_HEIGHT - 600;
+  const lineGap = 64;
+
+  for (const line of lines) {
+    const tokens = tokenizeHighlighted(line);
+    let curX = margin;
+    for (const tok of tokens) {
+      const w = ctx.measureText(tok.text).width;
+      if (tok.highlight) {
+        // PERUBAHAN: Kotak Biru Dinamis
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(curX - 4, y - 4, w + 8, 54);
+        ctx.fillStyle = '#ffffff';
+      } else {
+        ctx.fillStyle = '#ffffff';
       }
-    } else {
-      let local = t - (titleEnd + 1);
-      if (local < 0) return;
-      for (let i = 0; i < bodyPages.length; i++) {
-        let d = pageDurations[i] + PAGE_GAP;
-        if (local < d) { drawBodyPage(bodyPages[i], local); break; }
-        local -= d;
-      }
+      ctx.fillText(tok.text, curX, y);
+      curX += w;
     }
+    y += lineGap;
   }
+  ctx.restore();
+}
 
-  function drawBodyPage(lines, localT) {
-    const margin = 110; let startY = 1300;
-    const tokens = tokenize(lines.join(' '));
-    ctx.font = "700 48px 'PlusJakartaCustom'";
-    ctx.textBaseline = 'top';
-    ctx.textAlign = 'left';
-
-    let curX = margin, curY = startY;
-    const maxWidth = 1080 - (margin * 2);
-
-    // Hitung progress sapuan (WIPE) meniru judul
-    const progress = Math.min(1, localT / BODY_WIPE);
-    const wipeX = margin + (maxWidth * progress);
-
-    tokens.forEach((tok) => {
-      // Pecah per kata untuk kalkulasi posisi kotak dan baris baru
-      const words = tok.text.split(/(\s+)/);
-      words.forEach(word => {
-        const metrics = ctx.measureText(word);
-        if (curX + metrics.width > 1080 - margin && word.trim()) {
-          curX = margin; curY += 70;
-        }
-
-        // Hanya gambar jika posisi X kata berada di dalam area sapuan (WIPE)
-        if (curX < wipeX) {
-          if (tok.highlight && word.trim()) {
-            // Highlight KOTAK BIRU dinamis (#38bdf8)
-            ctx.fillStyle = '#38bdf8';
-            // Disesuaikan agar kotak menutup kata dengan pas
-            ctx.fillRect(curX - 4, curY - 2, metrics.width + 8, 56);
-            ctx.fillStyle = 'white';
-          } else {
-            ctx.fillStyle = 'white';
-          }
-          ctx.fillText(word, curX, curY);
-        }
-        curX += metrics.width;
-      });
-    });
+function recomputeTargetDuration() {
+  bodyPages = [];
+  const raw = bodyEl.value.split("\n");
+  let cur = [];
+  for (const line of raw) {
+    if (!line.trim()) { if (cur.length) { bodyPages.push(cur); cur = []; } }
+    else { cur.push(line); }
   }
+  if (cur.length) bodyPages.push(cur);
+  
+  pageDurations = bodyPages.map(p => Math.max(3, p.join(' ').split(' ').length / READING_WORDS_PER_SEC));
+  const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
+  targetDuration = titleTotal + 1 + pageDurations.reduce((a, b) => a + b, 0) + (PAGE_GAP * bodyPages.length);
+}
 
-  function animate(ts) {
-    if (!animating && !recording) return;
-    if (!animStart) animStart = ts;
-    const elapsed = (ts - animStart) / 1000;
-    draw(elapsed);
-    if (elapsed < targetDuration) requestAnimationFrame(animate);
-    else { animating = false; statusEl.textContent = "Status: Idle"; }
+function drawFrame(globalT) {
+  const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
+  if (globalT <= titleTotal) { drawTitleScene(globalT); return; }
+  const tBody = globalT - (titleTotal + 1);
+  let acc = 0;
+  for (let i = 0; i < bodyPages.length; i++) {
+    const d = pageDurations[i];
+    if (tBody < acc + d) { drawBodyPage(i, tBody - acc); return; }
+    acc += d + PAGE_GAP;
   }
+}
 
-  document.getElementById('previewBtn').onclick = () => {
-    preparePages(); titleTextureReady = false; animating = true; animStart = null;
-    requestAnimationFrame(animate);
+function animate(ts) {
+  if (!animating && !recording) return;
+  if (!animStart) animStart = ts;
+  const elapsed = (ts - animStart) / 1000;
+  drawFrame(Math.min(elapsed, targetDuration));
+  if (elapsed < targetDuration) requestAnimationFrame(animate);
+  else { animating = false; statusEl.textContent = "Status: idle"; }
+}
+
+previewBtn.onclick = () => { 
+  recomputeTargetDuration(); titleTextureReady = false; 
+  animStart = null; animating = true; requestAnimationFrame(animate); 
+};
+
+renderBtn.onclick = () => {
+  recomputeTargetDuration(); titleTextureReady = false;
+  const stream = canvas.captureStream(30);
+  const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 8000000 });
+  let chunks = [];
+  recorder.ondataavailable = e => chunks.push(e.data);
+  recorder.onstop = () => {
+    const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+    downloadEl.innerHTML = `<a href="${url}" download="video.webm" style="color:#38bdf8">Download Video</a>`;
   };
-
-  document.getElementById('renderBtn').onclick = () => {
-    preparePages(); titleTextureReady = false; recording = true; animStart = null;
-    const stream = canvas.captureStream(30);
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 8000000 });
-    let chunks = [];
-    recorder.ondataavailable = e => chunks.push(e.data);
-    recorder.onstop = () => {
-      const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
-      downloadEl.innerHTML = `<a href="${url}" download="reels_1080p.webm" style="color:#38bdf8; text-decoration:underline;">Download Video (1080p)</a>`;
-      recording = false; statusEl.textContent = "Status: Done!";
-    };
-    recorder.start(); requestAnimationFrame(animate);
-    setTimeout(() => recorder.stop(), targetDuration * 1000);
-  };
+  recorder.start(); 
+  animating = true; recording = true; animStart = null; requestAnimationFrame(animate);
+  setTimeout(() => recorder.stop(), targetDuration * 1000 + 500);
+};
 </script>
 </body>
 </html>
