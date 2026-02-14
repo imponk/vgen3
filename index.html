@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>VGEN2 - 1080p Wipe Mode</title>
+  <title>Reels - 1080p Wipe Style</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     * { box-sizing: border-box; }
@@ -40,13 +40,28 @@
 <body>
 
 <div class="panel left">
-  <textarea id="upper">The Brief</textarea>
-  <textarea id="title">The Psychology of Money</textarea>
-  <textarea id="subtitle">How to think about wealth</textarea>
-  <textarea id="body" style="min-height: 200px;">Investing is not about being [[smart]], it's about being [[disciplined]].</textarea>
-  <button id="previewBtn">Preview</button>
-  <button id="renderBtn">Render (1080p)</button>
-  <div id="status" style="text-align:center; font-size:12px; color:#9ca3af;">Status: Idle</div>
+  <h2>VGEN2 Editor</h2>
+  <div class="field">
+    <label>Upper Text</label>
+    <textarea id="upper">The Brief</textarea>
+  </div>
+  <div class="field">
+    <label>Judul Utama</label>
+    <textarea id="title">The Psychology of Money</textarea>
+  </div>
+  <div class="field">
+    <label>Subjudul</label>
+    <textarea id="subtitle">How to think about wealth</textarea>
+  </div>
+  <div class="field">
+    <label>Isi (Highlight: [[kata]])</label>
+    <textarea id="body" style="min-height: 200px;">Investing is not about being [[smart]], it's about being [[disciplined]]. Most people fail not because they lack knowledge, but because they lack [[patience]].</textarea>
+  </div>
+  <div class="btn-row">
+    <button id="previewBtn">Preview</button>
+    <button id="renderBtn">Render (1080p)</button>
+  </div>
+  <div id="status" style="text-align:center; font-size:12px; color:#9ca3af; margin-top:10px;">Status: Idle</div>
   <div id="download" style="text-align:center;"></div>
 </div>
 
@@ -60,6 +75,7 @@
   const LOGICAL_WIDTH = 1080;
   const LOGICAL_HEIGHT = 1920;
 
+  // Dipaksa 1080p murni sesuai permintaan sebelumnya
   canvas.width = LOGICAL_WIDTH;
   canvas.height = LOGICAL_HEIGHT;
 
@@ -74,10 +90,11 @@
   let targetDuration = 10, bodyPages = [], pageDurations = [];
   let titleCanvas = null, titleTextureReady = false;
 
-  // Timing
+  // Timing Konstanta
   const TITLE_PRE_HOLD = 0.3, TITLE_WIPE = 0.8, TITLE_STATIC = 2.0;
-  const BODY_WIPE = 0.8, PAGE_GAP = 0.6; 
-  const READING_WORDS_PER_SEC = 2.5;
+  const BODY_WIPE = 0.8; // Durasi sapuan isi meniru judul
+  const PAGE_GAP = 0.6;
+  const READING_WORDS_PER_SEC = 2.8;
 
   function wrapText(text, maxWidth, fontSpec) {
     ctx.font = fontSpec;
@@ -110,7 +127,7 @@
   function preparePages() {
     const margin = 110;
     const maxWidth = 1080 - (margin * 2);
-    const bodyFont = "700 48px 'PlusJakartaCustom'"; // Font isi dikecilkan (dari 58 ke 48)
+    const bodyFont = "700 48px 'PlusJakartaCustom'"; // Font isi dikecilkan sesuai permintaan
     const lines = wrapText(bodyEl.value, maxWidth, bodyFont);
     bodyPages = []; pageDurations = [];
     let cur = [];
@@ -119,11 +136,11 @@
       if (cur.length === 10 || i === lines.length - 1) {
         bodyPages.push(cur);
         const words = cur.join(' ').split(' ').length;
-        pageDurations.push(Math.max(2.5, words / READING_WORDS_PER_SEC));
+        pageDurations.push(Math.max(3, words / READING_WORDS_PER_SEC));
         cur = [];
       }
     }
-    targetDuration = (TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC) + 
+    targetDuration = (TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC) + 1 + 
                      pageDurations.reduce((a, b) => a + b, 0) + (bodyPages.length * PAGE_GAP);
   }
 
@@ -135,22 +152,25 @@
     let y = 1220;
     tCtx.fillStyle = 'white'; tCtx.textAlign = 'left';
 
-    // Upper: Tidak kapital otomatis
+    // Upper: Tidak dipaksa kapital
     if (upperEl.value) {
       tCtx.font = "700 34px 'PlusJakartaCustom'";
-      wrapText(upperEl.value, maxWidth, tCtx.font).forEach(l => { tCtx.fillText(l, margin, y); y += 45; });
+      const uLines = wrapText(upperEl.value, maxWidth, tCtx.font);
+      uLines.forEach(l => { tCtx.fillText(l, margin, y); y += 45; });
       y += 40; 
     }
     // Title
-    tCtx.font = "700 96px 'DMSerifCustomBold'";
-    wrapText(titleEl.value, maxWidth, tCtx.font).forEach(l => { tCtx.fillText(l, margin, y); y += 105; });
+    tCtx.font = "700 90px 'DMSerifCustomBold'";
+    const tLines = wrapText(titleEl.value, maxWidth, tCtx.font);
+    tLines.forEach(l => { tCtx.fillText(l, margin, y); y += 95; });
     
-    y -= 10; // Merapatkan jarak subjudul (sebelumnya +25, sekarang dikurangi)
+    y -= 15; // Jarak subjudul dirapatkan
 
     // Subtitle
     if (subtitleEl.value) {
       tCtx.font = "700 34px 'PlusJakartaCustom'";
-      wrapText(subtitleEl.value, maxWidth, tCtx.font).forEach(l => { tCtx.fillText(l, margin, y); y += 45; });
+      const sLines = wrapText(subtitleEl.value, maxWidth, tCtx.font);
+      sLines.forEach(l => { tCtx.fillText(l, margin, y); y += 45; });
     }
     titleTextureReady = true;
   }
@@ -167,7 +187,8 @@
         ctx.fillStyle = '#808080'; ctx.fillRect(110 + (860 * p), 0, 1080, 1920);
       }
     } else {
-      let local = t - titleEnd;
+      let local = t - (titleEnd + 1);
+      if (local < 0) return;
       for (let i = 0; i < bodyPages.length; i++) {
         let d = pageDurations[i] + PAGE_GAP;
         if (local < d) { drawBodyPage(bodyPages[i], local); break; }
@@ -181,32 +202,38 @@
     const tokens = tokenize(lines.join(' '));
     ctx.font = "700 48px 'PlusJakartaCustom'";
     ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
 
-    // Animasi Wipe untuk Isi (Meniru Judul)
     let curX = margin, curY = startY;
     const maxWidth = 1080 - (margin * 2);
 
+    // Hitung progress sapuan (WIPE) meniru judul
+    const progress = Math.min(1, localT / BODY_WIPE);
+    const wipeX = margin + (maxWidth * progress);
+
     tokens.forEach((tok) => {
-      tok.text.split(/(\s+)/).forEach(word => {
-        let w = ctx.measureText(word).width;
-        if (curX + w > 1080 - margin && word.trim()) { curX = margin; curY += 70; }
+      // Pecah per kata untuk kalkulasi posisi kotak dan baris baru
+      const words = tok.text.split(/(\s+)/);
+      words.forEach(word => {
+        const metrics = ctx.measureText(word);
+        if (curX + metrics.width > 1080 - margin && word.trim()) {
+          curX = margin; curY += 70;
+        }
 
-        // Progress Wipe Per Halaman
-        let progress = Math.min(1, localT / BODY_WIPE);
-        let wipeBorder = margin + (860 * progress);
-
-        if (curX < wipeBorder) {
-          // Highlight Kotak Dinamis
-          if (tok.highlight) {
+        // Hanya gambar jika posisi X kata berada di dalam area sapuan (WIPE)
+        if (curX < wipeX) {
+          if (tok.highlight && word.trim()) {
+            // Highlight KOTAK BIRU dinamis (#38bdf8)
             ctx.fillStyle = '#38bdf8';
-            ctx.fillRect(curX - 4, curY, w + 8, 60); // Kotak Biru
-            ctx.fillStyle = 'white'; // Teks di atas kotak biru jadi putih
+            // Disesuaikan agar kotak menutup kata dengan pas
+            ctx.fillRect(curX - 4, curY - 2, metrics.width + 8, 56);
+            ctx.fillStyle = 'white';
           } else {
             ctx.fillStyle = 'white';
           }
           ctx.fillText(word, curX, curY);
         }
-        curX += w;
+        curX += metrics.width;
       });
     });
   }
@@ -214,8 +241,9 @@
   function animate(ts) {
     if (!animating && !recording) return;
     if (!animStart) animStart = ts;
-    draw((ts - animStart) / 1000);
-    if ((ts - animStart) / 1000 < targetDuration) requestAnimationFrame(animate);
+    const elapsed = (ts - animStart) / 1000;
+    draw(elapsed);
+    if (elapsed < targetDuration) requestAnimationFrame(animate);
     else { animating = false; statusEl.textContent = "Status: Idle"; }
   }
 
@@ -232,7 +260,7 @@
     recorder.ondataavailable = e => chunks.push(e.data);
     recorder.onstop = () => {
       const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
-      downloadEl.innerHTML = `<a href="${url}" download="reels_1080p.webm" style="color:#38bdf8">Download Video</a>`;
+      downloadEl.innerHTML = `<a href="${url}" download="reels_1080p.webm" style="color:#38bdf8; text-decoration:underline;">Download Video (1080p)</a>`;
       recording = false; statusEl.textContent = "Status: Done!";
     };
     recorder.start(); requestAnimationFrame(animate);
