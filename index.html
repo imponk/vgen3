@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    /* CSS ASLI ANDA TANPA PERUBAHAN */
+    /* CSS ASLI ANDA */
     * { box-sizing: border-box; }
     @font-face {
       font-family: 'DMSerifCustomBold';
@@ -31,12 +31,19 @@
     .panel { background: #020617; padding: 16px 14px; border-radius: 14px; border: 1px solid #1f2937; box-shadow: 0 16px 40px rgba(0,0,0,0.65); }
     .left { width: 380px; max-width: 100%; flex-shrink: 0; }
     .right { flex: 1; display: flex; justify-content: center; align-items: center; min-width: 0; }
-    textarea { width: 100%; min-height: 56px; background: #020617; color: #e5e7eb; border-radius: 10px; border: 1px solid #334155; padding: 9px 11px; font-size: 14px; outline: none; resize: vertical; }
-    canvas { background: #808080; border-radius: 18px; border: 1px solid #4b5563; max-height: 92vh; max-width: 100%; }
-    .btn-row { margin-top: 12px; display: flex; gap: 8px; }
-    .btn-primary { background: #2563eb; color: #fff; padding: 8px 16px; border-radius: 999px; border: none; cursor: pointer; }
-    .btn-secondary { background: #111827; color: #e5e7eb; padding: 8px 16px; border-radius: 999px; border: none; cursor: pointer; }
+    h2 { margin: 0 0 4px 0; font-size: 18px; letter-spacing: 0.02em; }
+    small { font-size: 11px; color: #9ca3af; display: block; margin-bottom: 6px; line-height: 1.4; }
+    .field { margin-top: 10px; }
+    label { font-size: 13px; display: block; margin-bottom: 4px; color: #cbd5f5; }
+    textarea { width: 100%; min-height: 56px; background: #020617; color: #e5e7eb; border-radius: 10px; border: 1px solid #334155; padding: 9px 11px; font-size: 14px; line-height: 1.5; resize: vertical; outline: none; }
+    #body { min-height: 130px; }
+    .btn-row { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    button { padding: 8px 16px; border-radius: 999px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: #2563eb; color: #fff; box-shadow: 0 8px 20px rgba(37,99,235,0.5); }
+    .btn-secondary { background: #111827; color: #e5e7eb; box-shadow: 0 6px 16px rgba(0,0,0,0.55); }
     .status { margin-top: 8px; font-size: 12px; color: #9ca3af; }
+    canvas { background: #808080; border-radius: 18px; border: 1px solid #4b5563; max-height: 92vh; max-width: 100%; }
+    @media (max-width: 900px) { body { flex-direction: column; } .left, .right { width: 100%; } }
   </style>
 </head>
 <body>
@@ -60,7 +67,7 @@
 
 <script>
 /* ============================================================
-   BASE SETUP - SCALE DIKUNCI 1 (1080p)
+   BASE SETUP - RESOLUSI TETAP 1080p
    ============================================================ */
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -68,7 +75,7 @@ const LOGICAL_WIDTH = 1080;
 const LOGICAL_HEIGHT = 1920;
 const SCALE = 1; 
 
-canvas.width = LOGICAL_WIDTH * SCALE;
+canvas.width  = LOGICAL_WIDTH * SCALE;
 canvas.height = LOGICAL_HEIGHT * SCALE;
 ctx.scale(SCALE, SCALE);
 
@@ -76,6 +83,8 @@ const upperEl = document.getElementById('upper');
 const titleEl = document.getElementById('title');
 const subtitleEl = document.getElementById('subtitle');
 const bodyEl = document.getElementById('body');
+const previewBtn = document.getElementById('previewBtn');
+const renderBtn = document.getElementById('renderBtn');
 const statusEl = document.getElementById('status');
 const downloadEl = document.getElementById('download');
 
@@ -83,14 +92,17 @@ let animating = false, recording = false, animStart = null;
 let targetDuration = 12, bodyPages = [], pageDurations = [];
 let titleCanvas = null, titleTextureReady = false;
 
-/* TIMING ASLI ANDA */
+/* TIMING ASLI */
 const TITLE_PRE_HOLD = 0.3;   
 const TITLE_WIPE     = 0.8;   
 const TITLE_STATIC   = 2.0;   
-const BODY_WIPE      = 0.8; 
+const BODY_WIPE      = 0.8; // Samakan durasi wipe
 const PAGE_GAP       = 0.6;
 const READING_WORDS_PER_SEC = 3.0;
 
+function setStatus(t) { statusEl.textContent = 'Status: ' + t; }
+
+/* FUNGSI WRAP & TOKEN ASLI ANDA */
 function wrapText(text, maxWidth, fontSpec) {
   if (fontSpec) ctx.font = fontSpec;
   const paragraphs = text.split(/\r?\n/);
@@ -117,15 +129,14 @@ function tokenizeHighlighted(text) {
     else if (hi && text.startsWith(']]', i)) { flush(); hi = false; i += 2; }
     else { buf += text[i]; if (text[i] === ' ') flush(); i++; }
   }
-  function flush() { if (buf) { tokens.push({ text: buf, highlight: hi }); buf = ''; } }
+  function flush() { if (buf.length > 0) { tokens.push({ text: buf, highlight: hi }); buf = ''; } }
   flush(); return tokens;
 }
 
-/* FUNGSI DRAW LINE ASLI ANDA (DIPERBAIKI UNTUK WIPE) */
+/* LOGIKA DRAW LINE ASLI ANDA */
 function drawLineFromTokens(tokens, x, y, normalColor, highlightBg) {
   const full = tokens.map(t => t.text).join('');
   let index = 0, first = null, last = null;
-
   for (const t of tokens) {
     if (t.highlight && t.text.trim().length > 0) {
       if (first === null) first = index;
@@ -133,7 +144,6 @@ function drawLineFromTokens(tokens, x, y, normalColor, highlightBg) {
     }
     index += t.text.length;
   }
-
   if (first !== null) {
     const before = full.slice(0, first);
     const inside = full.slice(first, last);
@@ -163,19 +173,20 @@ function drawWrappedRichParagraph(text, x, yStart, maxWidth, lineGap, normal, hi
   return { y, linesUsed: lines.length };
 }
 
+/* REBUILD TEXTURE */
 function rebuildTitleTexture() {
   titleCanvas = document.createElement('canvas');
-  titleCanvas.width = 1080; titleCanvas.height = 1920;
+  titleCanvas.width = LOGICAL_WIDTH; titleCanvas.height = LOGICAL_HEIGHT;
   const tCtx = titleCanvas.getContext('2d');
   tCtx.fillStyle = '#ffffff'; tCtx.textAlign = 'left';
-  const margin = 110, textWidth = 830;
+  const margin = 110, textWidth = LOGICAL_WIDTH - 250;
   let y = 1220;
 
-  /* PERBAIKAN: HAPUS toUpperCase() */
-  const upperText = upperEl.value.trim(); 
-  if (upperText) {
+  /* MODIFIKASI 1: Hapus toUpperCase */
+  const upperVal = upperEl.value.trim();
+  if (upperVal) {
     tCtx.font = "700 34px 'PlusJakartaCustom'";
-    wrapText(upperText, textWidth).forEach(l => { tCtx.fillText(l, margin, y); y += 36; });
+    wrapText(upperVal, textWidth).forEach(l => { tCtx.fillText(l, margin, y); y += 36; });
     y += 70;
   }
   tCtx.font = "700 90px 'DMSerifCustomBold'";
@@ -201,32 +212,32 @@ function drawTitleScene(t) {
   ctx.restore();
 }
 
-/* PERBAIKAN: ANIMASI ISI DISAMAKAN DENGAN JUDUL (WIPE) */
+/* MODIFIKASI 2: ANIMASI ISI PAKAI WIPE (CLIP) */
 function drawBodyPage(pageIndex, t) {
   ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
   const lines = bodyPages[pageIndex] || [];
-  const margin = 110, maxWidth = 830;
-  
+  const margin = 110, textWidth = 830;
   const p = Math.min(1, t / BODY_WIPE);
   const smoothP = p * p * (3 - 2 * p);
-  const currentClipWidth = margin + (maxWidth * smoothP);
+  const currentClipWidth = margin + (textWidth * smoothP);
 
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, currentClipWidth, 1920); ctx.clip();
-  ctx.textAlign = 'left'; ctx.font = "700 54px 'PlusJakartaCustom'";
-
+  ctx.font = "700 54px 'PlusJakartaCustom'"; ctx.textAlign = 'left';
+  
   let totalUnits = 0;
-  lines.forEach(raw => { if(raw.trim()) totalUnits += wrapText(raw, maxWidth).length; });
+  lines.forEach(l => { if(l.trim()) totalUnits += wrapText(l, textWidth).length; });
   const gap = 64; let y = 1320 + (7 - Math.min(totalUnits, 12)) * (gap/2);
 
   for (const raw of lines) {
     if (!raw.trim()) { y += gap * 0.6; continue; }
-    const res = drawWrappedRichParagraph(raw, margin, y, maxWidth, gap, "#fff", "#0088d8");
+    const res = drawWrappedRichParagraph(raw, margin, y, textWidth, gap, "#fff", "#0088d8");
     y = res.y;
   }
   ctx.restore();
 }
 
+/* LOGIKA JALANNYA VIDEO ASLI ANDA */
 function recomputeTargetDuration() {
   rebuildTitleTexture();
   const raw = bodyEl.value.split("\n");
@@ -259,7 +270,7 @@ function animate(ts) {
   const elapsed = (ts - animStart) / 1000;
   drawFrame(Math.min(elapsed, targetDuration));
   if (elapsed < targetDuration) requestAnimationFrame(animate);
-  else { animating = false; statusEl.textContent = "Status: idle"; }
+  else { animating = false; setStatus("idle"); }
 }
 
 previewBtn.onclick = () => { recomputeTargetDuration(); animStart = null; animating = true; requestAnimationFrame(animate); };
@@ -271,7 +282,7 @@ renderBtn.onclick = () => {
   recorder.ondataavailable = e => chunks.push(e.data);
   recorder.onstop = () => {
     const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
-    downloadEl.innerHTML = `<a href="${url}" download="reels_1080p.webm" style="color:#38bdf8">Download Video</a>`;
+    downloadEl.innerHTML = `<a href="${url}" download="reels_output.webm" style="color:#38bdf8">Download Video</a>`;
   };
   recorder.start(); animating = true; recording = true; animStart = null; requestAnimationFrame(animate);
   setTimeout(() => recorder.stop(), targetDuration * 1000 + 500);
