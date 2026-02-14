@@ -5,7 +5,7 @@
   <title>Reels</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* CSS ASLI ANDA - TIDAK BERUBAH */
+    /* CSS ASLI ANDA */
     * { box-sizing: border-box; }
     @font-face {
       font-family: 'DMSerifCustomBold';
@@ -27,7 +27,6 @@
     .left { width: 380px; max-width: 100%; flex-shrink: 0; }
     .right { flex: 1; display: flex; justify-content: center; align-items: center; min-width: 0; }
     h2 { margin: 0 0 4px 0; font-size: 18px; letter-spacing: 0.02em; }
-    small { font-size: 11px; color: #9ca3af; display: block; margin-bottom: 6px; line-height: 1.4; }
     .field { margin-top: 10px; }
     label { font-size: 13px; display: block; margin-bottom: 4px; color: #cbd5f5; }
     textarea { width: 100%; min-height: 56px; background: #020617; color: #e5e7eb; border-radius: 10px; border: 1px solid #334155; padding: 9px 11px; font-size: 14px; line-height: 1.5; resize: vertical; outline: none; }
@@ -76,21 +75,21 @@ const bodyEl = document.getElementById('body');
 const previewBtn = document.getElementById('previewBtn');
 const renderBtn = document.getElementById('renderBtn');
 const statusEl = document.getElementById('status');
-const downloadEl = document.getElementById('download');
 
 let animating = false, recording = false, animStart = null;
 let targetDuration = 12, bodyPages = [], pageDurations = [];
 let titleCanvas = null, titleTextureReady = false;
-let titleLayout = { marginLeft: 110, marginRight: 140, textWidth: 830, upperLines: [], titleLines: [], subtitleLines: [] };
+let titleLayout = { upperLines: [], titleLines: [], subtitleLines: [] };
 
+/* TIMING CONSTANTS */
 const TITLE_PRE_HOLD = 0.3;   
 const TITLE_WIPE     = 0.8;   
 const TITLE_STATIC   = 2.0;   
-const BODY_FADE_IN   = 0.3;
-const BODY_WIPE      = 0.4;
-const HIGHLIGHT_LINE_DUR = 0.8;
-const PAGE_GAP       = 0.6;
+const BODY_WIPE      = 0.4; // Durasi sapuan teks
+const HIGHLIGHT_DELAY = 0.2; // Jeda highlight setelah teks
+const PAGE_GAP       = 1.0; // JEDA KOSONG 1 DETIK
 const READING_WORDS_PER_SEC = 3.0;
+const HIGHLIGHT_LINE_DUR = 0.8;
 
 function setStatus(t) { statusEl.textContent = 'Status: ' + t; }
 
@@ -134,28 +133,22 @@ function drawLineFromTokens(tokens, x, y, normalColor, highlightBg, progress, cl
     }
     index += t.text.length;
   }
-  
   if (first !== null && clipHigh > margin) {
     const before = full.slice(0, first);
     const inside = full.slice(first, last);
     const wBefore = ctx.measureText(before).width;
     const wInside = ctx.measureText(inside).width;
     const visible = wInside * progress;
-
-    // Hanya gambar jika lebar highlight > 0 untuk menghindari artefak di kiri
     if (visible > 0) {
       ctx.save();
       ctx.beginPath(); 
-      // Clip dimulai tepat dari margin agar tidak bocor ke kiri
       ctx.rect(margin, 0, Math.max(0, clipHigh - margin), LOGICAL_HEIGHT);
       ctx.clip();
-      
       ctx.fillStyle = highlightBg;
       ctx.fillRect(x + wBefore - 4, y - 42, visible + 8, 54);
       ctx.restore();
     }
   }
-  
   ctx.fillStyle = normalColor;
   ctx.fillText(full, x, y);
 }
@@ -225,17 +218,6 @@ function rebuildBodyPages() {
   if (cur.length > 0) bodyPages.push(cur);
 }
 
-function estimateLinesForParagraph(text, maxWidth) {
-  ctx.font = "700 54px 'PlusJakartaCustom'";
-  const tokens = tokenizeHighlighted(text);
-  let lines = 0, curText = '';
-  for (const tok of tokens) {
-    if (curText && ctx.measureText(curText + tok.text).width > maxWidth) { lines++; curText = tok.text; }
-    else curText += tok.text;
-  }
-  return lines + 1;
-}
-
 function drawBodyPage(pageIndex, t) {
   ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
   const lines = bodyPages[pageIndex] || [];
@@ -243,45 +225,65 @@ function drawBodyPage(pageIndex, t) {
 
   let wipe = Math.min(1, t / BODY_WIPE);
   const clipText = margin + textWidth * (wipe * wipe * (3 - 2 * wipe));
-
-  const delay = 0.2;
-  let wipeHigh = Math.max(0, Math.min(1, (t - delay) / BODY_WIPE));
+  let wipeHigh = Math.max(0, Math.min(1, (t - HIGHLIGHT_DELAY) / BODY_WIPE));
   const clipHigh = margin + textWidth * (wipeHigh * wipeHigh * (3 - 2 * wipeHigh));
 
   ctx.save();
-  ctx.globalAlpha = Math.min(1, t / BODY_FADE_IN);
-  // Clip teks utama dimulai dari margin agar tidak bocor
   ctx.beginPath(); ctx.rect(margin, 0, Math.max(0, clipText - margin), 1920); ctx.clip();
-  
   ctx.font = "700 54px 'PlusJakartaCustom'"; ctx.textAlign = 'left';
-  let totalUnits = 0; lines.forEach(l => totalUnits += estimateLinesForParagraph(l, textWidth));
-  const gap = 64; let y = 1320 + (7 - Math.min(totalUnits, 12)) * (gap/2);
+  let y = 1320 + (7 - Math.min(lines.length * 1.5, 12)) * (32);
   let idx = 0;
   for (const raw of lines) {
-    const res = drawWrappedRichParagraph(raw, margin, y, textWidth, gap, "#fff", "#0088d8", idx, t, clipHigh, margin);
+    const res = drawWrappedRichParagraph(raw, margin, y, textWidth, 64, "#fff", "#0088d8", idx, t, clipHigh, margin);
     y = res.y; idx += res.linesUsed;
   }
   ctx.restore();
 }
 
-function recomputeTargetDuration() {
-  rebuildTitleLayout(); rebuildBodyPages();
-  pageDurations = bodyPages.map(p => Math.max(3, p.join(' ').split(/\s+/).length / READING_WORDS_PER_SEC));
-  const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
-  targetDuration = titleTotal + 1 + pageDurations.reduce((a, b) => a + b, 0) + (PAGE_GAP * (bodyPages.length - 1));
-}
-
 function drawFrame(globalT) {
   const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
-  if (globalT <= titleTotal) { drawTitleScene(globalT); return; }
-  if (globalT <= titleTotal + 1) { ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920); return; }
-  const tBody = globalT - (titleTotal + 1);
+  
+  // 1. Judul
+  if (globalT <= titleTotal) {
+    drawTitleScene(globalT);
+    return;
+  }
+
+  // 2. Jeda Kosong setelah Judul
+  if (globalT <= titleTotal + PAGE_GAP) {
+    ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
+    return;
+  }
+
+  // 3. Halaman Isi
+  const tBody = globalT - (titleTotal + PAGE_GAP);
   let acc = 0;
   for (let i = 0; i < bodyPages.length; i++) {
     const d = pageDurations[i];
-    if (tBody < acc + d) { drawBodyPage(i, tBody - acc); return; }
-    acc += d + PAGE_GAP;
+    if (tBody < acc + d) {
+      drawBodyPage(i, tBody - acc);
+      return;
+    }
+    acc += d;
+    // Jeda antar halaman
+    if (tBody < acc + PAGE_GAP) {
+      ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
+      return;
+    }
+    acc += PAGE_GAP;
   }
+
+  // 4. Jeda Penutup
+  ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
+}
+
+function recomputeTargetDuration() {
+  rebuildTitleLayout(); rebuildBodyPages();
+  pageDurations = bodyPages.map(p => Math.max(4, p.join(' ').split(/\s+/).length / READING_WORDS_PER_SEC));
+  const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
+  const contentTotal = pageDurations.reduce((a, b) => a + b, 0);
+  const gapsTotal = (bodyPages.length + 1) * PAGE_GAP; // Jeda awal + jeda antar + jeda akhir
+  targetDuration = titleTotal + contentTotal + gapsTotal;
 }
 
 function animate(ts) {
