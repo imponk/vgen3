@@ -2,10 +2,10 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Reels Editor Pro</title>
+  <title>Reels</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* CSS ASLI */
+    /* CSS ASLI ANDA */
     * { box-sizing: border-box; }
     @font-face {
       font-family: 'DMSerifCustomBold';
@@ -36,51 +36,37 @@
     .btn-primary { background: #2563eb; color: #fff; }
     .btn-secondary { background: #111827; color: #e5e7eb; }
     .status { margin-top: 8px; font-size: 12px; color: #9ca3af; }
-    #download { margin-top: 10px; }
-    #download a { color: #3b82f6; text-decoration: none; font-weight: bold; }
     canvas { background: #808080; border-radius: 18px; border: 1px solid #4b5563; max-height: 92vh; max-width: 100%; }
   </style>
 </head>
 <body>
   <div class="panel left">
     <h2>Reels Editor</h2>
-    <div class="field"><label>Upper</label><textarea id="upper">QUOTES OF THE DAY</textarea></div>
-    <div class="field"><label>Judul</label><textarea id="title">Rahasia Menjadi Lebih Produktif</textarea></div>
-    <div class="field"><label>Subjudul</label><textarea id="subtitle">Edisi Motivasi Pagi</textarea></div>
-    <div class="field"><label>Isi</label><textarea id="body">Fokus pada [[satu hal]] setiap waktu.
-Jangan biarkan [[distraksi]] mengganggu Anda.
-
-Konsistensi adalah [[kunci utama]] keberhasilan.</textarea></div>
+    <div class="field"><label>Upper</label><textarea id="upper"></textarea></div>
+    <div class="field"><label>Judul</label><textarea id="title"></textarea></div>
+    <div class="field"><label>Subjudul</label><textarea id="subtitle"></textarea></div>
+    <div class="field"><label>Isi</label><textarea id="body"></textarea></div>
     <div class="btn-row">
       <button class="btn-secondary" id="previewBtn">👁️ Preview</button>
       <button class="btn-primary" id="renderBtn">🎬 Render (WEBM)</button>
     </div>
-    <div class="status" id="status">Status: Memuat...</div>
-    <div id="download"></div>
+    <div class="status" id="status">Status: idle</div>
   </div>
-
   <div class="panel right">
     <canvas id="canvas" width="1080" height="1920"></canvas>
   </div>
 
 <script>
+// MENGGUNAKAN STRUKTUR ASLI ANDA
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const LOGICAL_WIDTH = 1080;
 const LOGICAL_HEIGHT = 1920;
-const SCALE = 0.5; // Skala tampilan canvas di browser agar tidak terlalu besar
+const SCALE = 1.5; 
 
-canvas.width  = LOGICAL_WIDTH * (recording ? 1 : SCALE);
-canvas.height = LOGICAL_HEIGHT * (recording ? 1 : SCALE);
-
-function updateCanvasSize() {
-  const s = recording ? 1 : 1.5; 
-  canvas.width = LOGICAL_WIDTH * s;
-  canvas.height = LOGICAL_HEIGHT * s;
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.scale(s, s);
-}
-updateCanvasSize();
+canvas.width  = LOGICAL_WIDTH * SCALE;
+canvas.height = LOGICAL_HEIGHT * SCALE;
+ctx.scale(SCALE, SCALE);
 
 const upperEl = document.getElementById('upper');
 const titleEl = document.getElementById('title');
@@ -89,30 +75,28 @@ const bodyEl = document.getElementById('body');
 const previewBtn = document.getElementById('previewBtn');
 const renderBtn = document.getElementById('renderBtn');
 const statusEl = document.getElementById('status');
-const downloadEl = document.getElementById('download');
 
 let animating = false, recording = false, animStart = null;
 let targetDuration = 12, bodyPages = [], pageDurations = [];
 let titleCanvas = null;
-let titleLayout = { upperLines: [], titleLines: [], subtitleLines: [] };
+let titleLayout = { marginLeft: 110, textWidth: 830, upperLines: [], titleLines: [], subtitleLines: [] };
 
-/* KONSTANTA TIMING */
+// KONSTANTA ASLI
 const TITLE_PRE_HOLD = 0.3;   
 const TITLE_WIPE     = 0.8;   
 const TITLE_STATIC   = 2.0;   
 const BODY_WIPE      = 0.4;
-const HIGHLIGHT_DELAY = 0.2;
-const PAGE_GAP       = 1.0; // Jeda 1 detik
-const READING_WORDS_PER_SEC = 2.5;
+const PAGE_GAP       = 1.0; // JEDA 1 DETIK SESUAI PERMINTAAN
+const READING_WORDS_PER_SEC = 3.0;
 const HIGHLIGHT_LINE_DUR = 0.8;
 
 function setStatus(t) { statusEl.textContent = 'Status: ' + t; }
 
-/* FUNGSI PENGOLAH TEKS */
+// FUNGSI WRAP ASLI
 function wrapText(text, maxWidth, fontSpec) {
   if (fontSpec) ctx.font = fontSpec;
-  const lines = [];
   const paragraphs = text.split(/\r?\n/);
+  const lines = [];
   for (const para of paragraphs) {
     const trimmed = para.trim();
     if (!trimmed) { lines.push(''); continue; }
@@ -128,6 +112,7 @@ function wrapText(text, maxWidth, fontSpec) {
   return lines;
 }
 
+// FUNGSI TOKENIZE ASLI
 function tokenizeHighlighted(text) {
   let tokens = [], buf = '', hi = false, i = 0;
   function flush() { if (buf.length > 0) { tokens.push({ text: buf, highlight: hi }); buf = ''; } }
@@ -139,7 +124,7 @@ function tokenizeHighlighted(text) {
   flush(); return tokens;
 }
 
-/* FUNGSI DRAWING */
+// FUNGSI DRAWLINE ASLI
 function drawLineFromTokens(tokens, x, y, normalColor, highlightBg, progress, clipHigh, margin) {
   const full = tokens.map(t => t.text).join('');
   let index = 0, first = null, last = null;
@@ -150,12 +135,14 @@ function drawLineFromTokens(tokens, x, y, normalColor, highlightBg, progress, cl
     }
     index += t.text.length;
   }
+  
   if (first !== null && clipHigh > margin) {
     const before = full.slice(0, first);
     const inside = full.slice(first, last);
     const wBefore = ctx.measureText(before).width;
     const wInside = ctx.measureText(inside).width;
     const visible = wInside * progress;
+
     if (visible > 0) {
       ctx.save();
       ctx.beginPath(); 
@@ -166,10 +153,12 @@ function drawLineFromTokens(tokens, x, y, normalColor, highlightBg, progress, cl
       ctx.restore();
     }
   }
+  
   ctx.fillStyle = normalColor;
   ctx.fillText(full, x, y);
 }
 
+// FUNGSI PARAGRAPH ASLI
 function drawWrappedRichParagraph(text, x, yStart, maxWidth, lineGap, normal, highlightBg, indexStart, time, clipHigh, margin) {
   const tokens = tokenizeHighlighted(text);
   let lines = [], curTokens = [], curText = '';
@@ -189,12 +178,18 @@ function drawWrappedRichParagraph(text, x, yStart, maxWidth, lineGap, normal, hi
   return { y, linesUsed: lines.length };
 }
 
-function rebuildTitleTexture() {
+// FUNGSI REBUILD ASLI
+function rebuildTitleLayout() {
+  const textWidth = 830;
+  titleLayout.upperLines = wrapText(upperEl.value.trim(), textWidth, "700 34px 'PlusJakartaCustom'");
+  titleLayout.titleLines = wrapText(titleEl.value.trim(), textWidth, "700 90px 'DMSerifCustomBold'");
+  titleLayout.subtitleLines = wrapText(subtitleEl.value.trim(), textWidth, "700 34px 'PlusJakartaCustom'");
+  
   titleCanvas = document.createElement('canvas');
   titleCanvas.width = 1080; titleCanvas.height = 1920;
   const tCtx = titleCanvas.getContext('2d');
   tCtx.fillStyle = '#ffffff'; tCtx.textAlign = 'left';
-  let y = 1220; 
+  let y = 1220; // POSISI Y AWAL JUDUL
   tCtx.font = "700 34px 'PlusJakartaCustom'";
   titleLayout.upperLines.forEach(l => { tCtx.fillText(l, 110, y); y += 36; });
   y += 70;
@@ -205,6 +200,7 @@ function rebuildTitleTexture() {
   titleLayout.subtitleLines.forEach(l => { tCtx.fillText(l, 110, y); y += 36; });
 }
 
+// FUNGSI TITLE SCENE ASLI
 function drawTitleScene(t) {
   ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
   const localT = Math.max(0, t - TITLE_PRE_HOLD);
@@ -215,23 +211,23 @@ function drawTitleScene(t) {
   ctx.fillRect(clipWidth, 0, 1080 - clipWidth, 1920);
 }
 
+// FUNGSI BODY PAGE ASLI DENGAN PENYESUAIAN Y
 function drawBodyPage(pageIndex, t) {
   ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
   const lines = bodyPages[pageIndex] || [];
   const margin = 110, textWidth = 830;
-  
+
   let wipe = Math.min(1, t / BODY_WIPE);
   const clipText = margin + textWidth * (wipe * wipe * (3 - 2 * wipe));
-  let wipeHigh = Math.max(0, Math.min(1, (t - HIGHLIGHT_DELAY) / BODY_WIPE));
+  let wipeHigh = Math.max(0, Math.min(1, (t - 0.2) / BODY_WIPE));
   const clipHigh = margin + textWidth * (wipeHigh * wipeHigh * (3 - 2 * wipeHigh));
 
   ctx.save();
-  ctx.beginPath(); 
-  ctx.rect(margin, 0, Math.max(0, clipText - margin), LOGICAL_HEIGHT); 
-  ctx.clip();
-  
+  ctx.beginPath(); ctx.rect(margin, 0, Math.max(0, clipText - margin), 1920); ctx.clip();
   ctx.font = "700 54px 'PlusJakartaCustom'"; ctx.textAlign = 'left';
-  let y = 1220; // Sejajar dengan posisi judul
+  
+  // KOORDINAT Y DISAMAKAN DENGAN AWAL JUDUL (1220)
+  let y = 1220; 
   let idx = 0;
   for (const raw of lines) {
     const res = drawWrappedRichParagraph(raw, margin, y, textWidth, 64, "#fff", "#0088d8", idx, t, clipHigh, margin);
@@ -240,30 +236,38 @@ function drawBodyPage(pageIndex, t) {
   ctx.restore();
 }
 
+// LOGIKA DRAWFRAME ASLI DENGAN JEDA 1 DETIK
 function drawFrame(globalT) {
   const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
   if (globalT <= titleTotal) { drawTitleScene(globalT); return; }
-  if (globalT <= titleTotal + PAGE_GAP) { ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920); return; }
   
+  // JEDA 1 DETIK SETELAH JUDUL
+  if (globalT <= titleTotal + PAGE_GAP) {
+    ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
+    return;
+  }
+
   const tBody = globalT - (titleTotal + PAGE_GAP);
   let acc = 0;
   for (let i = 0; i < bodyPages.length; i++) {
     const d = pageDurations[i];
-    if (tBody < acc + d) { drawBodyPage(i, tBody - acc); return; }
+    if (tBody < acc + d) {
+      drawBodyPage(i, tBody - acc);
+      return;
+    }
     acc += d;
-    if (tBody < acc + PAGE_GAP) { ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920); return; }
+    // JEDA 1 DETIK ANTAR ISI
+    if (tBody < acc + PAGE_GAP) {
+      ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
+      return;
+    }
     acc += PAGE_GAP;
   }
   ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
 }
 
-function recomputeTargetDuration() {
-  const textWidth = 830;
-  titleLayout.upperLines = wrapText(upperEl.value.trim(), textWidth, "700 34px 'PlusJakartaCustom'");
-  titleLayout.titleLines = wrapText(titleEl.value.trim(), textWidth, "700 90px 'DMSerifCustomBold'");
-  titleLayout.subtitleLines = wrapText(subtitleEl.value.trim(), textWidth, "700 34px 'PlusJakartaCustom'");
-  rebuildTitleTexture();
-  
+function recompute() {
+  rebuildTitleLayout();
   const raw = bodyEl.value.split("\n");
   bodyPages = []; let cur = [];
   for (const line of raw) {
@@ -271,71 +275,38 @@ function recomputeTargetDuration() {
     else cur.push(line);
   }
   if (cur.length > 0) bodyPages.push(cur);
-  
   pageDurations = bodyPages.map(p => Math.max(4, p.join(' ').split(/\s+/).length / READING_WORDS_PER_SEC));
+  
   const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
   targetDuration = titleTotal + pageDurations.reduce((a, b) => a + b, 0) + (bodyPages.length + 1) * PAGE_GAP;
 }
 
 function animate(ts) {
-  if (!animating && !recording) return;
+  if (!animating) return;
   if (!animStart) animStart = ts;
   const elapsed = (ts - animStart) / 1000;
   drawFrame(Math.min(elapsed, targetDuration));
   if (elapsed < targetDuration) requestAnimationFrame(animate);
-  else { 
-    animating = false; recording = false; 
-    updateCanvasSize();
-    setStatus("idle"); 
-  }
+  else { animating = false; setStatus("idle"); }
 }
 
-/* EVENT HANDLERS */
-previewBtn.onclick = () => {
-  recomputeTargetDuration();
-  recording = false;
-  updateCanvasSize();
-  animStart = null; animating = true; 
-  setStatus("previewing...");
-  requestAnimationFrame(animate);
-};
-
+previewBtn.onclick = () => { recompute(); animStart = null; animating = true; requestAnimationFrame(animate); };
 renderBtn.onclick = () => {
-  recomputeTargetDuration();
-  recording = true;
-  updateCanvasSize();
-  setStatus("rendering...");
+  recompute();
   const stream = canvas.captureStream(30);
   const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
   let chunks = [];
   recorder.ondataavailable = e => chunks.push(e.data);
   recorder.onstop = () => {
     const blob = new Blob(chunks, { type: 'video/webm' });
-    downloadEl.innerHTML = `<a href="${URL.createObjectURL(blob)}" download="reels.webm">⬇️ Download Hasil Render</a>`;
-    recording = false;
-    updateCanvasSize();
-    setStatus("idle");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `reels.webm`; a.click();
   };
-  recorder.start();
-  animating = true; animStart = null;
-  requestAnimationFrame(animate);
+  recorder.start(); animating = true; animStart = null; requestAnimationFrame(animate);
   setTimeout(() => recorder.stop(), targetDuration * 1000 + 500);
 };
 
-/* BOOTSTRAP */
-window.onload = () => {
-  if (document.fonts) {
-    document.fonts.ready.then(() => {
-      recomputeTargetDuration();
-      drawFrame(0);
-      setStatus("siap");
-    });
-  } else {
-    recomputeTargetDuration();
-    drawFrame(0);
-    setStatus("siap");
-  }
-};
+// INITIAL LOAD
+window.onload = () => { recompute(); drawFrame(0); };
 </script>
 </body>
 </html>
