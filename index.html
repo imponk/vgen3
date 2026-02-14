@@ -6,8 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    /* CSS ASLI ANDA TETAP SAMA */
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
+
+    /* DM Serif Bold custom untuk judul */
     @font-face {
       font-family: 'DMSerifCustomBold';
       src: url('./fonts/DMSerifDisplay-Bold.ttf') format('truetype');
@@ -15,6 +18,8 @@
       font-style: normal;
       font-display: swap;
     }
+
+    /* Plus Jakarta Bold lokal */
     @font-face {
       font-family: 'PlusJakartaCustom';
       src: url('./fonts/PlusJakartaSans-Bold.woff2') format('woff2');
@@ -22,37 +27,229 @@
       font-style: normal;
       font-display: swap;
     }
+
     body {
-      margin: 0; padding: 12px; display: flex; gap: 16px;
+      margin: 0;
+      padding: 12px;
+      display: flex;
+      gap: 16px;
       background: radial-gradient(circle at top, #020617 0%, #020617 40%, #020617 100%);
       color: #e5e7eb;
       font-family: 'PlusJakartaCustom', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
-    .panel { background: #020617; padding: 16px 14px; border-radius: 14px; border: 1px solid #1f2937; box-shadow: 0 16px 40px rgba(0,0,0,0.65); }
-    .left { width: 380px; max-width: 100%; flex-shrink: 0; }
-    .right { flex: 1; display: flex; justify-content: center; align-items: center; min-width: 0; }
-    h2 { margin: 0 0 4px 0; font-size: 18px; letter-spacing: 0.02em; }
-    small { font-size: 11px; color: #9ca3af; display: block; margin-bottom: 6px; line-height: 1.4; }
-    .field { margin-top: 10px; }
-    label { font-size: 13px; display: block; margin-bottom: 4px; color: #cbd5f5; }
-    textarea { width: 100%; min-height: 56px; background: #020617; color: #e5e7eb; border-radius: 10px; border: 1px solid #334155; padding: 9px 11px; font-size: 14px; line-height: 1.5; resize: vertical; outline: none; }
-    #body { min-height: 130px; }
-    .btn-row { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
-    button { padding: 8px 16px; border-radius: 999px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
-    .btn-primary { background: #2563eb; color: #fff; box-shadow: 0 8px 20px rgba(37,99,235,0.5); }
-    .btn-secondary { background: #111827; color: #e5e7eb; box-shadow: 0 6px 16px rgba(0,0,0,0.55); }
-    .status { margin-top: 8px; font-size: 12px; color: #9ca3af; }
-    canvas { background: #808080; border-radius: 18px; border: 1px solid #4b5563; max-height: 92vh; max-width: 100%; }
-    @media (max-width: 900px) { body { flex-direction: column; } .left, .right { width: 100%; } }
+
+    .panel {
+      background: #020617;
+      padding: 16px 14px;
+      border-radius: 14px;
+      border: 1px solid #1f2937;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.65);
+    }
+
+    .left {
+      width: 380px;
+      max-width: 100%;
+      flex-shrink: 0;
+    }
+
+    .right {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 0;
+    }
+
+    h2 {
+      margin: 0 0 4px 0;
+      font-size: 18px;
+      letter-spacing: 0.02em;
+    }
+
+    small {
+      font-size: 11px;
+      color: #9ca3af;
+      display: block;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+
+    .field {
+      margin-top: 10px;
+    }
+
+    label {
+      font-size: 13px;
+      display: block;
+      margin-bottom: 4px;
+      color: #cbd5f5;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 56px;
+      background: #020617;
+      color: #e5e7eb;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      padding: 9px 11px;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    }
+
+    #body {
+      min-height: 130px;
+    }
+
+    textarea::placeholder {
+      color: #64748b;
+    }
+
+    textarea:hover {
+      border-color: #4b5563;
+      background: #020819;
+    }
+
+    textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px rgba(37,99,235,0.8);
+      background: #020819;
+    }
+
+    .btn-row {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background-color 0.16s ease, transform 0.08s ease, box-shadow 0.16s ease;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(37,99,235,0.5);
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(37,99,235,0.6);
+    }
+
+    .btn-secondary {
+      background: #111827;
+      color: #e5e7eb;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.55);
+    }
+
+    .btn-secondary:hover {
+      background: #0f172a;
+    }
+
+    .status {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    #download {
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    canvas {
+      background: #808080;
+      border-radius: 18px;
+      border: 1px solid #4b5563;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+      max-height: 92vh;
+      max-width: 100%;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        flex-direction: column;
+        padding: 10px;
+      }
+
+      .left,
+      .right {
+        width: 100%;
+      }
+
+      .right {
+        margin-top: 10px;
+      }
+
+      textarea {
+        font-size: 16px;
+      }
+
+      #body {
+        min-height: 180px;
+      }
+
+      .panel {
+        padding: 14px 12px;
+      }
+    }
+
+    @media (max-width: 500px) {
+      h2 {
+        font-size: 16px;
+      }
+
+      small {
+        font-size: 10px;
+      }
+
+      button {
+        flex: 1 1 auto;
+        justify-content: center;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="panel left">
     <h2>Reels Editor</h2>
-    <div class="field"><label>Upper</label><textarea id="upper"></textarea></div>
-    <div class="field"><label>Judul</label><textarea id="title"></textarea></div>
-    <div class="field"><label>Subjudul</label><textarea id="subtitle"></textarea></div>
-    <div class="field"><label>Isi</label><textarea id="body"></textarea></div>
+    <small>Animasi Highlight sekarang memiliki delay seperti orang sedang menandai bacaan.</small>
+
+    <div class="field">
+      <label for="upper">Upper</label>
+      <textarea id="upper" placeholder="Upper teks"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="title">Judul</label>
+      <textarea id="title" placeholder="Judul utama"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="subtitle">Subjudul</label>
+      <textarea id="subtitle" placeholder="Subjudul"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="body">Isi</label>
+      <textarea id="body" placeholder="Isi teks dengan [[highlight]]"></textarea>
+    </div>
+
     <div class="btn-row">
       <button class="btn-secondary" id="previewBtn">👁️ Preview</button>
       <button class="btn-primary" id="renderBtn">🎬 Render (WEBM)</button>
@@ -67,13 +264,17 @@
 
 <script>
 /* ============================================================
-   BASE SETUP
+   BASE SETUP - SCALE 1.5 SESUAI ASLI
    ============================================================ */
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+
+const ua = navigator.userAgent;
+const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+
 const LOGICAL_WIDTH = 1080;
 const LOGICAL_HEIGHT = 1920;
-const SCALE = 1; 
+const SCALE = isMobile ? 0.75 : 1.5;
 
 canvas.width  = LOGICAL_WIDTH * SCALE;
 canvas.height = LOGICAL_HEIGHT * SCALE;
@@ -88,7 +289,7 @@ const renderBtn = document.getElementById('renderBtn');
 const statusEl = document.getElementById('status');
 const downloadEl = document.getElementById('download');
 
-let animating = false, recording = false, animStart = null;
+let animating = false, recording = false, mediaRecorder = null, recordedChunks = [], animStart = null;
 let targetDuration = 12, bodyPages = [], pageDurations = [];
 let titleCanvas = null, titleTextureReady = false;
 
@@ -100,6 +301,9 @@ const BODY_WIPE      = 0.8;
 const PAGE_GAP       = 0.6;
 const READING_WORDS_PER_SEC = 3.0;
 
+function setStatus(t) { statusEl.textContent = 'Status: ' + t; }
+
+/* FUNGSI ASLI ANDA */
 function wrapText(text, maxWidth, fontSpec) {
   if (fontSpec) ctx.font = fontSpec;
   const paragraphs = text.split(/\r?\n/);
@@ -121,17 +325,17 @@ function wrapText(text, maxWidth, fontSpec) {
 
 function tokenizeHighlighted(text) {
   let tokens = [], buf = '', hi = false, i = 0;
+  function flush() { if (buf.length > 0) { tokens.push({ text: buf, highlight: hi }); buf = ''; } }
   while (i < text.length) {
     if (!hi && text.startsWith('[[', i)) { flush(); hi = true; i += 2; }
     else if (hi && text.startsWith(']]', i)) { flush(); hi = false; i += 2; }
-    else { buf += text[i]; if (text[i] === ' ') flush(); i++; }
+    else { let ch = text[i]; buf += ch; if (ch === ' ') flush(); i++; }
   }
-  function flush() { if (buf.length > 0) { tokens.push({ text: buf, highlight: hi }); buf = ''; } }
   flush(); return tokens;
 }
 
-/* DRAW LINE ASLI ANDA */
-function drawLineFromTokens(tokens, x, y, normalColor, highlightBg, clipLimit) {
+/* MODIFIKASI: Menambahkan parameter clipHigh agar highlight bisa didelay */
+function drawLineFromTokens(tokens, x, y, normalColor, highlightBg, clipHigh) {
   const full = tokens.map(t => t.text).join('');
   let index = 0, first = null, last = null;
   for (const t of tokens) {
@@ -141,13 +345,10 @@ function drawLineFromTokens(tokens, x, y, normalColor, highlightBg, clipLimit) {
     }
     index += t.text.length;
   }
-
-  // GAMBAR HIGHLIGHT DULU (DENGAN CLIP TERPISAH)
   if (first !== null) {
     ctx.save();
-    // Gunakan clipLimit (yang ada delay) khusus untuk highlight
-    ctx.beginPath(); ctx.rect(0, 0, clipLimit, LOGICAL_HEIGHT); ctx.clip();
-    
+    // Clip khusus highlight agar muncul belakangan
+    ctx.beginPath(); ctx.rect(0, 0, clipHigh, LOGICAL_HEIGHT); ctx.clip();
     const before = full.slice(0, first);
     const inside = full.slice(first, last);
     const wBefore = ctx.measureText(before).width;
@@ -156,13 +357,11 @@ function drawLineFromTokens(tokens, x, y, normalColor, highlightBg, clipLimit) {
     ctx.fillRect(x + wBefore - 4, y - 42, wInside + 8, 54);
     ctx.restore();
   }
-
-  // GAMBAR TEKS (DENGAN CLIP UTAMA YANG LEBIH CEPAT)
   ctx.fillStyle = normalColor;
   ctx.fillText(full, x, y);
 }
 
-function drawWrappedRichParagraph(text, x, yStart, maxWidth, lineGap, normal, highlightBg, highlightClip) {
+function drawWrappedRichParagraph(text, x, yStart, maxWidth, lineGap, normal, highlightBg, clipHigh) {
   const tokens = tokenizeHighlighted(text);
   let lines = [], curTokens = [], curText = '';
   for (const tok of tokens) {
@@ -173,7 +372,7 @@ function drawWrappedRichParagraph(text, x, yStart, maxWidth, lineGap, normal, hi
   if (curTokens.length) lines.push(curTokens);
   let y = yStart;
   for (const lineTokens of lines) {
-    drawLineFromTokens(lineTokens, x, y, normal, highlightBg, highlightClip);
+    drawLineFromTokens(lineTokens, x, y, normal, highlightBg, clipHigh);
     y += lineGap;
   }
   return { y, linesUsed: lines.length };
@@ -184,12 +383,11 @@ function rebuildTitleTexture() {
   titleCanvas.width = LOGICAL_WIDTH; titleCanvas.height = LOGICAL_HEIGHT;
   const tCtx = titleCanvas.getContext('2d');
   tCtx.fillStyle = '#ffffff'; tCtx.textAlign = 'left';
-  const margin = 110, textWidth = 830;
-  let y = 1220;
-  const upperVal = upperEl.value.trim();
-  if (upperVal) {
+  const margin = 110, textWidth = LOGICAL_WIDTH - 250;
+  let y = LOGICAL_HEIGHT - 700;
+  if (upperEl.value.trim()) {
     tCtx.font = "700 34px 'PlusJakartaCustom'";
-    wrapText(upperVal, textWidth).forEach(l => { tCtx.fillText(l, margin, y); y += 36; });
+    wrapText(upperEl.value.trim(), textWidth).forEach(l => { tCtx.fillText(l, margin, y); y += 36; });
     y += 70;
   }
   tCtx.font = "700 90px 'DMSerifCustomBold'";
@@ -208,50 +406,15 @@ function drawTitleScene(t) {
   if (t < TITLE_PRE_HOLD) { ctx.drawImage(titleCanvas, 0, 0); return; }
   const localT = t - TITLE_PRE_HOLD;
   const p = Math.min(1, localT / TITLE_WIPE);
-  const clipWidth = 110 + (830 * (p * p * (3 - 2 * p)));
+  const smoothP = p * p * (3 - 2 * p);
+  const clipWidth = 110 + (830 * smoothP);
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, clipWidth, 1920); ctx.clip();
   ctx.drawImage(titleCanvas, 0, 0);
   ctx.restore();
 }
 
-/* PERBAIKAN: ANIMASI ISI DENGAN DELAY HIGHLIGHT */
-function drawBodyPage(pageIndex, t) {
-  ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
-  const lines = bodyPages[pageIndex] || [];
-  const margin = 110, textWidth = 830;
-
-  // 1. Progress Teks (Wipe Normal)
-  const pText = Math.min(1, t / BODY_WIPE);
-  const smoothText = pText * pText * (3 - 2 * pText);
-  const textClipWidth = margin + (textWidth * smoothText);
-
-  // 2. Progress Highlight (Wipe dengan Delay)
-  const delay = 0.15; // Jeda waktu highlight mengejar teks
-  const pHigh = Math.max(0, Math.min(1, (t - delay) / BODY_WIPE));
-  const smoothHigh = pHigh * pHigh * (3 - 2 * pHigh);
-  const highClipWidth = margin + (textWidth * smoothHigh);
-
-  ctx.save();
-  // Clip Utama untuk Teks
-  ctx.beginPath(); ctx.rect(0, 0, textClipWidth, 1920); ctx.clip();
-  ctx.font = "700 54px 'PlusJakartaCustom'"; ctx.textAlign = 'left';
-  
-  let totalUnits = 0;
-  lines.forEach(l => { if(l.trim()) totalUnits += wrapText(l, textWidth).length; });
-  const gap = 64; let y = 1320 + (7 - Math.min(totalUnits, 12)) * (gap/2);
-
-  for (const raw of lines) {
-    if (!raw.trim()) { y += gap * 0.6; continue; }
-    // Kirim highClipWidth untuk membatasi gambar highlight di dalam fungsi
-    const res = drawWrappedRichParagraph(raw, margin, y, textWidth, gap, "#fff", "#0088d8", highClipWidth);
-    y = res.y;
-  }
-  ctx.restore();
-}
-
-function recomputeTargetDuration() {
-  rebuildTitleTexture();
+function rebuildBodyPages() {
   const raw = bodyEl.value.split("\n");
   bodyPages = []; let cur = [];
   for (const line of raw) {
@@ -259,7 +422,40 @@ function recomputeTargetDuration() {
     else { cur.push(line); }
   }
   if (cur.length > 0) bodyPages.push(cur);
-  pageDurations = bodyPages.map(p => Math.min(12, Math.max(3, p.join(' ').split(' ').length / READING_WORDS_PER_SEC)));
+}
+
+/* PERBAIKAN: Animasi Isi Wipe dengan Delay Highlight */
+function drawBodyPage(pageIndex, t) {
+  ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
+  const lines = bodyPages[pageIndex] || [];
+  const margin = 110, textWidth = 830;
+
+  // Clip Teks Utama
+  const pText = Math.min(1, t / BODY_WIPE);
+  const smoothText = pText * pText * (3 - 2 * pText);
+  const clipText = margin + (textWidth * smoothText);
+
+  // Clip Highlight (Delay 0.2 detik)
+  const delay = 0.2; 
+  const pHigh = Math.max(0, Math.min(1, (t - delay) / BODY_WIPE));
+  const smoothHigh = pHigh * pHigh * (3 - 2 * pHigh);
+  const clipHigh = margin + (textWidth * smoothHigh);
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, clipText, 1920); ctx.clip();
+  ctx.font = "700 54px 'PlusJakartaCustom'"; ctx.textAlign = 'left';
+  
+  const gap = 64; let y = LOGICAL_HEIGHT - 600;
+  for (const raw of lines) {
+    const res = drawWrappedRichParagraph(raw, margin, y, textWidth, gap, "#fff", "#0088d8", clipHigh);
+    y = res.y;
+  }
+  ctx.restore();
+}
+
+function recomputeTargetDuration() {
+  rebuildTitleTexture(); rebuildBodyPages();
+  pageDurations = bodyPages.map(p => Math.max(3, p.join(' ').split(' ').length / READING_WORDS_PER_SEC));
   const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
   targetDuration = titleTotal + 1 + pageDurations.reduce((a, b) => a + b, 0) + (PAGE_GAP * bodyPages.length);
 }
@@ -282,22 +478,23 @@ function animate(ts) {
   const elapsed = (ts - animStart) / 1000;
   drawFrame(Math.min(elapsed, targetDuration));
   if (elapsed < targetDuration) requestAnimationFrame(animate);
-  else { animating = false; statusEl.textContent = "Status: idle"; }
+  else { animating = false; setStatus("idle"); }
 }
 
 previewBtn.onclick = () => { recomputeTargetDuration(); animStart = null; animating = true; requestAnimationFrame(animate); };
 renderBtn.onclick = () => {
   recomputeTargetDuration();
   const stream = canvas.captureStream(30);
-  const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
-  let chunks = [];
-  recorder.ondataavailable = e => chunks.push(e.data);
-  recorder.onstop = () => {
-    const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
-    downloadEl.innerHTML = `<a href="${url}" download="video.webm" style="color:#38bdf8">Download Video</a>`;
+  mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+  mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+  mediaRecorder.onstop = () => {
+    const url = URL.createObjectURL(new Blob(recordedChunks, { type: 'video/webm' }));
+    downloadEl.innerHTML = `<a href="${url}" download="reels.webm">Download Video</a>`;
+    setStatus("selesai");
   };
-  recorder.start(); animating = true; recording = true; animStart = null; requestAnimationFrame(animate);
-  setTimeout(() => recorder.stop(), targetDuration * 1000 + 500);
+  recordedChunks = []; mediaRecorder.start(); 
+  animating = true; recording = true; animStart = null; requestAnimationFrame(animate);
+  setTimeout(() => mediaRecorder.stop(), targetDuration * 1000 + 500);
 };
 </script>
 </body>
