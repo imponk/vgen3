@@ -5,7 +5,7 @@
   <title>Reels</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* CSS ASLI ANDA */
+    /* CSS TETAP ASLI */
     * { box-sizing: border-box; }
     @font-face {
       font-family: 'DMSerifCustomBold';
@@ -27,8 +27,6 @@
     .left { width: 380px; max-width: 100%; flex-shrink: 0; }
     .right { flex: 1; display: flex; justify-content: center; align-items: center; min-width: 0; }
     h2 { margin: 0 0 4px 0; font-size: 18px; letter-spacing: 0.02em; }
-    .field { margin-top: 10px; }
-    label { font-size: 13px; display: block; margin-bottom: 4px; color: #cbd5f5; }
     textarea { width: 100%; min-height: 56px; background: #020617; color: #e5e7eb; border-radius: 10px; border: 1px solid #334155; padding: 9px 11px; font-size: 14px; line-height: 1.5; resize: vertical; outline: none; }
     #body { min-height: 130px; }
     .btn-row { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -81,13 +79,12 @@ let targetDuration = 12, bodyPages = [], pageDurations = [];
 let titleCanvas = null, titleTextureReady = false;
 let titleLayout = { upperLines: [], titleLines: [], subtitleLines: [] };
 
-/* TIMING CONSTANTS */
 const TITLE_PRE_HOLD = 0.3;   
 const TITLE_WIPE     = 0.8;   
 const TITLE_STATIC   = 2.0;   
-const BODY_WIPE      = 0.4; // Durasi sapuan teks
-const HIGHLIGHT_DELAY = 0.2; // Jeda highlight setelah teks
-const PAGE_GAP       = 1.0; // JEDA KOSONG 1 DETIK
+const BODY_WIPE      = 0.4;
+const HIGHLIGHT_DELAY = 0.2;
+const PAGE_GAP       = 1.0; 
 const READING_WORDS_PER_SEC = 3.0;
 const HIGHLIGHT_LINE_DUR = 0.8;
 
@@ -185,7 +182,8 @@ function rebuildTitleTexture() {
   titleCanvas.width = 1080; titleCanvas.height = 1920;
   const tCtx = titleCanvas.getContext('2d');
   tCtx.fillStyle = '#ffffff'; tCtx.textAlign = 'left';
-  let y = 1220;
+  // POSISI Y JUDUL = 1220
+  let y = 1220; 
   tCtx.font = "700 34px 'PlusJakartaCustom'";
   titleLayout.upperLines.forEach(l => { tCtx.fillText(l, 110, y); y += 36; });
   y += 70;
@@ -231,7 +229,9 @@ function drawBodyPage(pageIndex, t) {
   ctx.save();
   ctx.beginPath(); ctx.rect(margin, 0, Math.max(0, clipText - margin), 1920); ctx.clip();
   ctx.font = "700 54px 'PlusJakartaCustom'"; ctx.textAlign = 'left';
-  let y = 1320 + (7 - Math.min(lines.length * 1.5, 12)) * (32);
+  
+  // PENYESUAIAN Y: Mulai dari 1220 agar sejajar dengan tinggi judul
+  let y = 1220; 
   let idx = 0;
   for (const raw of lines) {
     const res = drawWrappedRichParagraph(raw, margin, y, textWidth, 64, "#fff", "#0088d8", idx, t, clipHigh, margin);
@@ -242,20 +242,11 @@ function drawBodyPage(pageIndex, t) {
 
 function drawFrame(globalT) {
   const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
-  
-  // 1. Judul
-  if (globalT <= titleTotal) {
-    drawTitleScene(globalT);
-    return;
-  }
-
-  // 2. Jeda Kosong setelah Judul
+  if (globalT <= titleTotal) { drawTitleScene(globalT); return; }
   if (globalT <= titleTotal + PAGE_GAP) {
     ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
     return;
   }
-
-  // 3. Halaman Isi
   const tBody = globalT - (titleTotal + PAGE_GAP);
   let acc = 0;
   for (let i = 0; i < bodyPages.length; i++) {
@@ -265,15 +256,12 @@ function drawFrame(globalT) {
       return;
     }
     acc += d;
-    // Jeda antar halaman
     if (tBody < acc + PAGE_GAP) {
       ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
       return;
     }
     acc += PAGE_GAP;
   }
-
-  // 4. Jeda Penutup
   ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 1080, 1920);
 }
 
@@ -282,7 +270,7 @@ function recomputeTargetDuration() {
   pageDurations = bodyPages.map(p => Math.max(4, p.join(' ').split(/\s+/).length / READING_WORDS_PER_SEC));
   const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
   const contentTotal = pageDurations.reduce((a, b) => a + b, 0);
-  const gapsTotal = (bodyPages.length + 1) * PAGE_GAP; // Jeda awal + jeda antar + jeda akhir
+  const gapsTotal = (bodyPages.length + 1) * PAGE_GAP;
   targetDuration = titleTotal + contentTotal + gapsTotal;
 }
 
