@@ -28,7 +28,7 @@ display:flex;
 gap:16px;
 background:#020617;
 color:#e5e7eb;
-font-family:'PlusJakartaCustom',system-ui;
+font-family:'PlusJakartaCustom';
 }
 
 .panel{
@@ -37,12 +37,6 @@ background:#020617;
 padding:14px;
 border-radius:12px;
 border:1px solid #1f2937;
-}
-
-canvas{
-background:#808080;
-border-radius:16px;
-border:1px solid #374151;
 }
 
 textarea{
@@ -64,15 +58,8 @@ cursor:pointer;
 margin-right:6px;
 }
 
-.preview{
-background:#111827;
-color:white;
-}
-
-.render{
-background:#2563eb;
-color:white;
-}
+.preview{background:#111827;color:white;}
+.render{background:#2563eb;color:white;}
 
 .status{
 font-size:12px;
@@ -93,6 +80,13 @@ margin-top:6px;
 height:100%;
 width:0%;
 background:#2563eb;
+}
+
+canvas{
+border-radius:16px;
+border:1px solid #374151;
+height:92vh;
+width:auto;
 }
 
 </style>
@@ -121,12 +115,40 @@ Isi (gunakan [[highlight]])
 
 </div>
 
-<canvas id="canvas" width="1080" height="1920"></canvas>
+<canvas id="canvas"></canvas>
 
 <script>
 
+/* =========================
+CONFIG — IDENTIK ENGINE KAMU
+========================= */
+
+const LOGICAL_WIDTH=1080;
+const LOGICAL_HEIGHT=1920;
+const SCALE=1.5;
+
+const TITLE_PRE_HOLD=0.3;
+const TITLE_WIPE=0.8;
+const TITLE_STATIC=2;
+
+const PAGE_GAP=1;
+const READING_WORDS_PER_SEC=3;
+const HIGHLIGHT_LINE_DUR=0.8;
+
+const HIGHLIGHT_COLOR="#0088d8";
+
+/* ========================= */
+
 const canvas=document.getElementById("canvas");
 const ctx=canvas.getContext("2d");
+
+canvas.width=LOGICAL_WIDTH*SCALE;
+canvas.height=LOGICAL_HEIGHT*SCALE;
+
+ctx.scale(SCALE,SCALE);
+
+canvas.style.height="92vh";
+canvas.style.width="auto";
 
 const statusEl=document.getElementById("status");
 const progressBar=document.getElementById("progressBar");
@@ -142,25 +164,9 @@ const bodyEl=document.getElementById("body");
 const previewBtn=document.getElementById("previewBtn");
 const renderBtn=document.getElementById("renderBtn");
 
-/* ENGINE PARAMETER — sama seperti milik kamu */
-
-const TITLE_PRE_HOLD=0.3;
-const TITLE_WIPE=0.8;
-const TITLE_STATIC=2;
-
-const PAGE_GAP=1;
-const READING_WORDS_PER_SEC=3;
-const HIGHLIGHT_LINE_DUR=0.8;
-
-let titleCanvas;
-let bodyPages=[];
-let pageDurations=[];
-let targetDuration=0;
-
-let animating=false;
-let animStart=null;
-
-/* TOKENIZER — RULE [[highlight]] */
+/* =========================
+TOKENIZER — RULE [[highlight]]
+========================= */
 
 function tokenizeHighlighted(text){
 
@@ -178,34 +184,31 @@ buf='';
 
 while(i<text.length){
 
-if(!hi&&text.startsWith('[[',i)){
+if(!hi&&text.startsWith("[[",i)){
 flush();
 hi=true;
 i+=2;
 }
-
-else if(hi&&text.startsWith(']]',i)){
+else if(hi&&text.startsWith("]]",i)){
 flush();
 hi=false;
 i+=2;
 }
-
 else{
 let ch=text[i];
 buf+=ch;
-if(ch===' ')flush();
+if(ch===" ")flush();
 i++;
 }
 
 }
 
 flush();
-
 return tokens;
 
 }
 
-/* WRAP RICH PARAGRAPH — ASLI ENGINE KAMU */
+/* ========================= */
 
 function wrapRichParagraph(text,maxWidth,font){
 
@@ -240,19 +243,23 @@ return lines;
 
 }
 
-/* BUILD TITLE */
+/* =========================
+TITLE LAYOUT — FIX TABRAKAN
+========================= */
+
+let titleCanvas;
 
 function rebuildTitle(){
 
 titleCanvas=document.createElement("canvas");
-titleCanvas.width=1080;
-titleCanvas.height=1920;
+titleCanvas.width=LOGICAL_WIDTH;
+titleCanvas.height=LOGICAL_HEIGHT;
 
 const t=titleCanvas.getContext("2d");
 
 t.fillStyle="white";
 
-let y=1220;
+let y=1180; /* FIX baseline */
 
 t.font="700 34px PlusJakartaCustom";
 
@@ -261,7 +268,7 @@ t.fillText(l,110,y);
 y+=36;
 });
 
-y+=80;
+y+=90; /* FIX spacing */
 
 t.font="700 90px DMSerifCustomBold";
 
@@ -281,41 +288,18 @@ y+=36;
 
 }
 
-/* DRAW TITLE SCENE — WIPE SESUAI ENGINE KAMU */
+/* =========================
+BODY ENGINE — IDENTIK
+========================= */
 
-function drawTitleScene(t){
-
-ctx.fillStyle="#808080";
-ctx.fillRect(0,0,1080,1920);
-
-if(t<TITLE_PRE_HOLD){
-
-ctx.drawImage(titleCanvas,0,0);
-return;
-
-}
-
-const wipeT=(t-TITLE_PRE_HOLD)/TITLE_WIPE;
-
-const w=Math.min(1080,wipeT*1080);
-
-ctx.save();
-ctx.beginPath();
-ctx.rect(0,0,w,1920);
-ctx.clip();
-
-ctx.drawImage(titleCanvas,0,0);
-
-ctx.restore();
-
-}
-
-/* DRAW BODY PAGE — HIGHLIGHT BERJALAN */
+let bodyPages=[];
+let pageDurations=[];
+let targetDuration=0;
 
 function drawBodyPage(pageIndex,time){
 
 ctx.fillStyle="#808080";
-ctx.fillRect(0,0,1080,1920);
+ctx.fillRect(0,0,LOGICAL_WIDTH,LOGICAL_HEIGHT);
 
 ctx.font="700 54px PlusJakartaCustom";
 
@@ -328,13 +312,13 @@ lines.forEach((line,id)=>{
 let x=110;
 
 const startT=id*HIGHLIGHT_LINE_DUR;
-const progress=Math.min(1,Math.max(0,(time-startT)/HIGHLIGHT_LINE_DUR));
+const progress=Math.max(0,Math.min((time-startT)/HIGHLIGHT_LINE_DUR,1));
 
 line.forEach(token=>{
 
 if(token.highlight){
 
-ctx.fillStyle="#2563eb";
+ctx.fillStyle=HIGHLIGHT_COLOR;
 
 const w=ctx.measureText(token.text).width;
 
@@ -356,7 +340,39 @@ y+=64;
 
 }
 
-/* FRAME CONTROLLER */
+/* ========================= */
+
+function drawTitleScene(t){
+
+ctx.fillStyle="#808080";
+ctx.fillRect(0,0,LOGICAL_WIDTH,LOGICAL_HEIGHT);
+
+if(t<TITLE_PRE_HOLD){
+
+ctx.drawImage(titleCanvas,0,0);
+return;
+
+}
+
+const wipeT=(t-TITLE_PRE_HOLD)/TITLE_WIPE;
+const p=Math.max(0,Math.min(wipeT,1));
+const eased=p*p*(3-2*p);
+
+const w=LOGICAL_WIDTH*eased;
+
+ctx.save();
+
+ctx.beginPath();
+ctx.rect(0,0,w,LOGICAL_HEIGHT);
+ctx.clip();
+
+ctx.drawImage(titleCanvas,0,0);
+
+ctx.restore();
+
+}
+
+/* ========================= */
 
 function drawFrame(globalT){
 
@@ -390,7 +406,7 @@ acc+=dur+PAGE_GAP;
 
 }
 
-/* COMPUTE */
+/* ========================= */
 
 function recompute(){
 
@@ -399,7 +415,7 @@ rebuildTitle();
 bodyPages=bodyEl.value
 .split("\n\n")
 .filter(p=>p.trim())
-.map(p=>wrapRichParagraph(p,860,"700 54px PlusJakartaCustom"));
+.map(p=>wrapRichParagraph(p,830,"700 54px PlusJakartaCustom"));
 
 pageDurations=bodyPages.map(p=>
 Math.max(4,p.length*HIGHLIGHT_LINE_DUR)
@@ -414,7 +430,12 @@ PAGE_GAP*(bodyPages.length+1);
 
 }
 
-/* ANIMATE — FIX FREEZE */
+/* =========================
+ANIMATION — FIX FREEZE
+========================= */
+
+let animStart=null;
+let animating=false;
 
 function animate(ts){
 
@@ -428,7 +449,7 @@ const elapsed=(ts-animStart)/1000;
 
 drawFrame(elapsed);
 
-setProgress(Math.min(100,(elapsed/targetDuration)*100));
+setProgress(Math.min(100,elapsed/targetDuration*100));
 
 if(elapsed<targetDuration){
 
@@ -443,7 +464,7 @@ setStatus("idle");
 
 }
 
-/* PREVIEW */
+/* ========================= */
 
 previewBtn.onclick=()=>{
 
@@ -458,7 +479,9 @@ requestAnimationFrame(animate);
 
 };
 
-/* RENDER VP8 */
+/* =========================
+RENDER VP8 — CAPCUT SAFE
+========================= */
 
 renderBtn.onclick=()=>{
 
@@ -506,10 +529,11 @@ setTimeout(()=>recorder.stop(),targetDuration*1000+500);
 
 };
 
+/* INIT */
+
 recompute();
 drawFrame(0);
 
 </script>
-
 </body>
 </html>
