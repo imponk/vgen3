@@ -20,13 +20,15 @@ font-family:system-ui;
 
 .panel{
 background:#020617;
-padding:16px;
+padding:16px 14px;
 border-radius:14px;
 border:1px solid #1f2937;
+box-shadow:0 16px 40px rgba(0,0,0,0.65);
 }
 
 .left{
 width:380px;
+flex-shrink:0;
 }
 
 .right{
@@ -38,43 +40,65 @@ align-items:center;
 
 textarea{
 width:100%;
-margin-bottom:10px;
+min-height:56px;
 background:#020617;
-color:white;
+color:#e5e7eb;
+border-radius:10px;
 border:1px solid #334155;
-padding:8px;
-border-radius:8px;
+padding:9px 11px;
+font-size:14px;
+resize:vertical;
+outline:none;
+margin-bottom:8px;
 }
 
 button{
-padding:10px 16px;
+padding:8px 16px;
 border-radius:999px;
 border:none;
 cursor:pointer;
+font-size:14px;
 margin-right:6px;
 }
 
-.preview{
-background:#111827;
-color:white;
+.btn-primary{
+background:#2563eb;
+color:#fff;
 }
 
-.render{
-background:#2563eb;
-color:white;
+.btn-secondary{
+background:#111827;
+color:#e5e7eb;
 }
 
 .status{
-margin-top:10px;
-font-size:13px;
+margin-top:8px;
+font-size:12px;
 color:#9ca3af;
+}
+
+.progress{
+width:100%;
+height:6px;
+background:#1f2937;
+border-radius:999px;
+margin-top:6px;
+overflow:hidden;
+}
+
+.bar{
+height:100%;
+width:0%;
+background:#2563eb;
+transition:width 0.1s linear;
 }
 
 canvas{
 background:#808080;
 border-radius:18px;
 border:1px solid #4b5563;
-max-height:90vh;
+max-height:92vh;
+max-width:100%;
 }
 </style>
 </head>
@@ -83,79 +107,131 @@ max-height:90vh;
 
 <div class="panel left">
 
-Upper
-<textarea id="upper"></textarea>
+<h3>Reels Editor</h3>
 
-Judul
-<textarea id="title"></textarea>
+<textarea id="upper" placeholder="Upper"></textarea>
+<textarea id="title" placeholder="Judul"></textarea>
+<textarea id="subtitle" placeholder="Subjudul"></textarea>
+<textarea id="body" placeholder="Isi"></textarea>
 
-Subjudul
-<textarea id="subtitle"></textarea>
+<button class="btn-secondary" id="previewBtn">Preview</button>
+<button class="btn-primary" id="renderBtn">Render WebM</button>
 
-Isi
-<textarea id="body"></textarea>
+<div class="status" id="status">Status: idle</div>
 
-<button class="preview" id="previewBtn">
-Preview
-</button>
-
-<button class="render" id="renderBtn">
-Render WebM (VP8)
-</button>
-
-<div class="status" id="status">
-Status: idle
+<div class="progress">
+<div class="bar" id="bar"></div>
 </div>
 
 </div>
 
 <div class="panel right">
-<canvas id="canvas"></canvas>
+<canvas id="canvas" width="1080" height="1920"></canvas>
 </div>
 
 <script>
 
-const canvas=document.getElementById("canvas");
-const ctx=canvas.getContext("2d");
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
 
-const previewBtn=document.getElementById("previewBtn");
-const renderBtn=document.getElementById("renderBtn");
-const statusEl=document.getElementById("status");
-
-const WIDTH=1080;
-const HEIGHT=1920;
 const SCALE=1.5;
-
-canvas.width=WIDTH*SCALE;
-canvas.height=HEIGHT*SCALE;
-
+canvas.width=1080*SCALE;
+canvas.height=1920*SCALE;
 ctx.scale(SCALE,SCALE);
+
+const previewBtn=document.getElementById('previewBtn');
+const renderBtn=document.getElementById('renderBtn');
+
+const statusEl=document.getElementById('status');
+const bar=document.getElementById('bar');
+
+const upperEl=document.getElementById('upper');
+const titleEl=document.getElementById('title');
+const subtitleEl=document.getElementById('subtitle');
+const bodyEl=document.getElementById('body');
 
 let animating=false;
 let animStart=null;
-
-let duration=8;
+let targetDuration=8;
 
 function setStatus(text){
-
 statusEl.textContent="Status: "+text;
+}
+
+function setProgress(value){
+bar.style.width=value+"%";
+}
+
+function wrapText(text,maxWidth,font){
+
+ctx.font=font;
+
+const words=text.split(" ");
+let lines=[];
+let line=words[0]||"";
+
+for(let i=1;i<words.length;i++){
+
+const test=line+" "+words[i];
+
+if(ctx.measureText(test).width>maxWidth){
+
+lines.push(line);
+line=words[i];
+
+}else{
+
+line=test;
+
+}
+
+}
+
+lines.push(line);
+
+return lines;
+
+}
+
+function recompute(){
+
+const words=bodyEl.value.split(/\s+/).length;
+
+targetDuration=Math.max(6,words/3);
 
 }
 
 function drawFrame(t){
 
 ctx.fillStyle="#808080";
-ctx.fillRect(0,0,WIDTH,HEIGHT);
+ctx.fillRect(0,0,1080,1920);
 
 ctx.fillStyle="#ffffff";
 
+ctx.font="bold 36px sans-serif";
+
+let y=1100;
+
+wrapText(upperEl.value,830,"bold 36px sans-serif").forEach(line=>{
+ctx.fillText(line,110,y);
+y+=40;
+});
+
+y+=40;
+
 ctx.font="bold 80px sans-serif";
 
-ctx.fillText("REELS PREVIEW",110,900);
+wrapText(titleEl.value,830,"bold 80px sans-serif").forEach(line=>{
+ctx.fillText(line,110,y);
+y+=85;
+});
 
-ctx.font="40px sans-serif";
+ctx.font="bold 36px sans-serif";
 
-ctx.fillText("time: "+t.toFixed(2),110,1000);
+wrapText(subtitleEl.value,830,"bold 36px sans-serif").forEach(line=>{
+ctx.fillText(line,110,y);
+y+=40;
+});
 
 }
 
@@ -169,14 +245,15 @@ const elapsed=(ts-animStart)/1000;
 
 drawFrame(elapsed);
 
-if(elapsed<duration){
+setProgress(Math.min(100,(elapsed/targetDuration)*100));
+
+if(elapsed<targetDuration){
 
 requestAnimationFrame(animate);
 
 }else{
 
 animating=false;
-
 setStatus("idle");
 
 }
@@ -185,7 +262,11 @@ setStatus("idle");
 
 previewBtn.onclick=()=>{
 
-setStatus("preview running");
+recompute();
+
+setStatus("preview");
+
+setProgress(0);
 
 animStart=null;
 
@@ -197,53 +278,39 @@ requestAnimationFrame(animate);
 
 renderBtn.onclick=()=>{
 
+recompute();
+
 setStatus("recording");
+
+setProgress(0);
 
 const stream=canvas.captureStream(30);
 
 const recorder=new MediaRecorder(stream,{
-mimeType:"video/webm;codecs=vp8",
+mimeType:'video/webm;codecs=vp8',
 videoBitsPerSecond:8000000
 });
 
 let chunks=[];
 
 recorder.ondataavailable=e=>{
-
-if(e.data.size>0){
-
-chunks.push(e.data);
-
-}
-
+if(e.data.size>0)chunks.push(e.data);
 };
 
 recorder.onstop=()=>{
 
-setStatus("encoding");
+setStatus("saving");
 
-const blob=new Blob(chunks,{
-type:"video/webm"
-});
-
-const url=URL.createObjectURL(blob);
+const blob=new Blob(chunks,{type:'video/webm'});
 
 const a=document.createElement("a");
-
-a.href=url;
-
+a.href=URL.createObjectURL(blob);
 a.download="reels.webm";
-
-document.body.appendChild(a);
-
 a.click();
-
-a.remove();
-
-URL.revokeObjectURL(url);
 
 setStatus("done");
 
+setProgress(100);
 };
 
 recorder.start(100);
@@ -255,10 +322,8 @@ animating=true;
 requestAnimationFrame(animate);
 
 setTimeout(()=>{
-
 recorder.stop();
-
-},duration*1000);
+},targetDuration*1000+300);
 
 };
 
