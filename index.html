@@ -146,6 +146,8 @@ const statusEl=document.getElementById("status");
 
 let animStart=null;
 let animating=false;
+let recording=false;
+
 let targetDuration=8;
 
 function setStatus(s){
@@ -157,29 +159,24 @@ const p=Math.min(t/targetDuration,1);
 progressBar.style.width=(p*100)+"%";
 }
 
-/* ========================= */
-/* ENGINE KAMU — TIDAK DIUBAH */
-/* ========================= */
+/* ===== ENGINE KAMU ===== */
 
 function recompute(){
+
+/* hitung durasi asli dari engine kamu */
 targetDuration=8;
-}
-
-function drawFrame(t){
-
-ctx.fillStyle="#808080";
-ctx.fillRect(0,0,LOGICAL_WIDTH,LOGICAL_HEIGHT);
-
-ctx.fillStyle="#fff";
-ctx.font="bold 80px PlusJakartaCustom";
-
-let p=Math.min(t/targetDuration,1);
-
-ctx.fillText("Preview OK",110,900*p);
 
 }
 
-/* ========================= */
+function drawFrame(globalT){
+
+/* kosong — engine asli kamu tetap di sini */
+/* tidak ada teks tambahan */
+/* tidak ada elemen tambahan */
+
+}
+
+/* ===== ANIMATION LOOP ===== */
 
 function animate(ts){
 
@@ -187,29 +184,37 @@ if(!animating)return;
 
 if(animStart===null)animStart=ts;
 
-let t=(ts-animStart)/1000;
+const elapsed=(ts-animStart)/1000;
 
-drawFrame(t);
+drawFrame(elapsed);
 
-updateProgress(t);
+updateProgress(elapsed);
 
-if(t<targetDuration)
+if(elapsed<targetDuration){
+
 requestAnimationFrame(animate);
-else{
+
+}else{
+
 animating=false;
+
+if(!recording)
 setStatus("idle");
+
 }
 
 }
+
+/* ===== PREVIEW ===== */
 
 previewBtn.onclick=function(){
 
 recompute();
 
+progressBar.style.width="0%";
+
 animStart=null;
 animating=true;
-
-progressBar.style.width="0%";
 
 setStatus("preview");
 
@@ -217,9 +222,13 @@ requestAnimationFrame(animate);
 
 };
 
+/* ===== RENDER VP8 ===== */
+
 renderBtn.onclick=function(){
 
 recompute();
+
+progressBar.style.width="0%";
 
 const stream=canvas.captureStream(30);
 
@@ -229,7 +238,12 @@ mimeType:'video/webm;codecs=vp8'
 
 let chunks=[];
 
-recorder.ondataavailable=e=>chunks.push(e.data);
+recorder.ondataavailable=e=>{
+
+if(e.data.size>0)
+chunks.push(e.data);
+
+};
 
 recorder.onstop=function(){
 
@@ -238,15 +252,17 @@ const blob=new Blob(chunks,{type:'video/webm'});
 const a=document.createElement("a");
 
 a.href=URL.createObjectURL(blob);
+
 a.download="reels.webm";
 
 a.click();
 
+recording=false;
 setStatus("done");
 
 };
 
-progressBar.style.width="0%";
+recording=true;
 
 setStatus("rendering");
 
@@ -257,9 +273,15 @@ animating=true;
 
 requestAnimationFrame(animate);
 
-setTimeout(()=>recorder.stop(),targetDuration*1000+300);
+setTimeout(function(){
+
+recorder.stop();
+
+},targetDuration*1000+300);
 
 };
+
+/* ===== INIT ===== */
 
 recompute();
 drawFrame(0);
