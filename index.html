@@ -12,12 +12,16 @@
 font-family:'DMSerifCustomBold';
 src:url('./fonts/DMSerifDisplay-Bold.ttf') format('truetype');
 font-weight:700;
+font-style:normal;
+font-display:swap;
 }
 
 @font-face{
 font-family:'PlusJakartaCustom';
 src:url('./fonts/PlusJakartaSans-Bold.woff2') format('woff2');
 font-weight:700;
+font-style:normal;
+font-display:swap;
 }
 
 body{
@@ -25,9 +29,9 @@ margin:0;
 padding:12px;
 display:flex;
 gap:16px;
-background:#020617;
+background:radial-gradient(circle at top,#020617 0%,#020617 40%,#020617 100%);
 color:#e5e7eb;
-font-family:'PlusJakartaCustom',system-ui;
+font-family:'PlusJakartaCustom',system-ui,sans-serif;
 }
 
 .panel{
@@ -40,6 +44,7 @@ box-shadow:0 16px 40px rgba(0,0,0,0.65);
 
 .left{
 width:380px;
+max-width:100%;
 flex-shrink:0;
 }
 
@@ -50,15 +55,39 @@ justify-content:center;
 align-items:center;
 }
 
+h2{
+margin:0 0 4px 0;
+font-size:18px;
+}
+
+.field{margin-top:10px;}
+
+label{
+font-size:13px;
+display:block;
+margin-bottom:4px;
+color:#cbd5f5;
+}
+
 textarea{
 width:100%;
-min-height:60px;
+min-height:56px;
 background:#020617;
 color:#e5e7eb;
 border-radius:10px;
 border:1px solid #334155;
 padding:9px 11px;
-margin-bottom:8px;
+font-size:14px;
+resize:vertical;
+outline:none;
+}
+
+#body{min-height:130px;}
+
+.btn-row{
+margin-top:12px;
+display:flex;
+gap:8px;
 }
 
 button{
@@ -66,7 +95,7 @@ padding:8px 16px;
 border-radius:999px;
 border:none;
 cursor:pointer;
-margin-right:6px;
+font-size:14px;
 }
 
 .btn-primary{
@@ -85,7 +114,9 @@ font-size:12px;
 color:#9ca3af;
 }
 
-.progress{
+/* progress bar */
+
+.progress-container{
 width:100%;
 height:6px;
 background:#1f2937;
@@ -94,10 +125,11 @@ margin-top:6px;
 overflow:hidden;
 }
 
-.bar{
+.progress-bar{
 height:100%;
 width:0%;
 background:#2563eb;
+transition:width 0.1s linear;
 }
 
 canvas{
@@ -106,6 +138,7 @@ border-radius:18px;
 border:1px solid #4b5563;
 max-height:92vh;
 }
+
 </style>
 </head>
 
@@ -113,26 +146,43 @@ max-height:92vh;
 
 <div class="panel left">
 
-<h3>Reels Editor</h3>
+<h2>Reels Editor</h2>
 
-<textarea id="upper" placeholder="Upper"></textarea>
-<textarea id="title" placeholder="Judul"></textarea>
-<textarea id="subtitle" placeholder="Subjudul"></textarea>
-<textarea id="body" placeholder="Isi (pisahkan paragraf dengan baris kosong)"></textarea>
+<div class="field">
+<label>Upper</label>
+<textarea id="upper"></textarea>
+</div>
 
+<div class="field">
+<label>Judul</label>
+<textarea id="title"></textarea>
+</div>
+
+<div class="field">
+<label>Subjudul</label>
+<textarea id="subtitle"></textarea>
+</div>
+
+<div class="field">
+<label>Isi</label>
+<textarea id="body"></textarea>
+</div>
+
+<div class="btn-row">
 <button class="btn-secondary" id="previewBtn">Preview</button>
-<button class="btn-primary" id="renderBtn">Render WebM</button>
+<button class="btn-primary" id="renderBtn">Render WEBM</button>
+</div>
 
 <div class="status" id="status">Status: idle</div>
 
-<div class="progress">
-<div class="bar" id="progressBar"></div>
+<div class="progress-container">
+<div class="progress-bar" id="progressBar"></div>
 </div>
 
 </div>
 
 <div class="panel right">
-<canvas id="canvas"></canvas>
+<canvas id="canvas" width="1080" height="1920"></canvas>
 </div>
 
 <script>
@@ -140,62 +190,70 @@ max-height:92vh;
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
 
-const SCALE=1.5;
-const WIDTH=1080;
-const HEIGHT=1920;
-
-canvas.width=WIDTH*SCALE;
-canvas.height=HEIGHT*SCALE;
-
-ctx.scale(SCALE,SCALE);
-
-const previewBtn=document.getElementById('previewBtn');
-const renderBtn=document.getElementById('renderBtn');
-
-const statusEl=document.getElementById('status');
 const progressBar=document.getElementById('progressBar');
+const statusEl=document.getElementById('status');
 
-const upperEl=document.getElementById('upper');
-const titleEl=document.getElementById('title');
-const subtitleEl=document.getElementById('subtitle');
-const bodyEl=document.getElementById('body');
-
-let animating=false;
-let animStart=null;
-
-let bodyPages=[];
-let pageDurations=[];
-let targetDuration=8;
-
-function setStatus(text){
-statusEl.textContent="Status: "+text;
+function setStatus(t){
+statusEl.textContent="Status: "+t;
 }
 
 function setProgress(p){
 progressBar.style.width=p+"%";
 }
 
-function wrapText(text,maxWidth,font){
+const LOGICAL_WIDTH=1080;
+const LOGICAL_HEIGHT=1920;
+const SCALE=1.5;
 
-ctx.font=font;
+canvas.width=LOGICAL_WIDTH*SCALE;
+canvas.height=LOGICAL_HEIGHT*SCALE;
+
+ctx.scale(SCALE,SCALE);
+
+const upperEl=document.getElementById('upper');
+const titleEl=document.getElementById('title');
+const subtitleEl=document.getElementById('subtitle');
+const bodyEl=document.getElementById('body');
+
+const previewBtn=document.getElementById('previewBtn');
+const renderBtn=document.getElementById('renderBtn');
+
+let animating=false;
+let animStart=null;
+
+let targetDuration=12;
+let bodyPages=[];
+let pageDurations=[];
+let titleCanvas=null;
+
+const TITLE_PRE_HOLD=0.3;
+const TITLE_WIPE=0.8;
+const TITLE_STATIC=2.0;
+const BODY_WIPE=0.4;
+const PAGE_GAP=1.0;
+const READING_WORDS_PER_SEC=3.0;
+const HIGHLIGHT_LINE_DUR=0.8;
+
+/* ---------- TEXT WRAP ---------- */
+
+function wrapText(text,maxWidth,fontSpec){
+
+if(fontSpec)ctx.font=fontSpec;
 
 const words=text.split(" ");
-
 let lines=[];
 let line=words[0]||"";
 
 for(let i=1;i<words.length;i++){
 
-const test=line+" "+words[i];
-
-if(ctx.measureText(test).width>maxWidth){
+if(ctx.measureText(line+" "+words[i]).width>maxWidth){
 
 lines.push(line);
 line=words[i];
 
 }else{
 
-line=test;
+line+=" "+words[i];
 
 }
 
@@ -207,94 +265,130 @@ return lines;
 
 }
 
-function recompute(){
+/* ---------- TITLE ---------- */
 
-const paragraphs=bodyEl.value.split(/\n\s*\n/);
+function rebuildTitleLayout(){
 
-bodyPages=paragraphs.filter(p=>p.trim());
+const textWidth=830;
 
-pageDurations=bodyPages.map(p=>Math.max(4,p.split(/\s+/).length/3));
+const upperLines=wrapText(upperEl.value,textWidth,"700 34px 'PlusJakartaCustom'");
+const titleLines=wrapText(titleEl.value,textWidth,"700 90px 'DMSerifCustomBold'");
+const subtitleLines=wrapText(subtitleEl.value,textWidth,"700 34px 'PlusJakartaCustom'");
 
-targetDuration=3+pageDurations.reduce((a,b)=>a+b,0);
+titleCanvas=document.createElement("canvas");
+titleCanvas.width=1080;
+titleCanvas.height=1920;
 
-}
+const tCtx=titleCanvas.getContext("2d");
 
-function drawTitle(){
+tCtx.fillStyle="#fff";
 
-ctx.fillStyle="#fff";
+let y=1220;
 
-let y=1200;
-
-ctx.font="700 34px PlusJakartaCustom";
-
-wrapText(upperEl.value,830,ctx.font).forEach(l=>{
-ctx.fillText(l,110,y);
+tCtx.font="700 34px 'PlusJakartaCustom'";
+upperLines.forEach(l=>{
+tCtx.fillText(l,110,y);
 y+=36;
 });
 
-y+=60;
+y+=70;
 
-ctx.font="700 90px DMSerifCustomBold";
-
-wrapText(titleEl.value,830,ctx.font).forEach(l=>{
-ctx.fillText(l,110,y);
+tCtx.font="700 90px 'DMSerifCustomBold'";
+titleLines.forEach(l=>{
+tCtx.fillText(l,110,y);
 y+=90;
 });
 
-ctx.font="700 34px PlusJakartaCustom";
+y-=20;
 
-wrapText(subtitleEl.value,830,ctx.font).forEach(l=>{
-ctx.fillText(l,110,y);
+tCtx.font="700 34px 'PlusJakartaCustom'";
+subtitleLines.forEach(l=>{
+tCtx.fillText(l,110,y);
 y+=36;
 });
 
 }
 
-function drawBody(pageIndex){
+/* ---------- BODY ---------- */
 
+function drawBodyPage(pageIndex,t){
+
+ctx.fillStyle="#808080";
+ctx.fillRect(0,0,1080,1920);
+
+ctx.font="700 54px 'PlusJakartaCustom'";
 ctx.fillStyle="#fff";
 
-ctx.font="700 54px PlusJakartaCustom";
+const lines=bodyPages[pageIndex]||[];
 
-let y=1200;
+let y=1220;
 
-wrapText(bodyPages[pageIndex],830,ctx.font).forEach(l=>{
-ctx.fillText(l,110,y);
+lines.forEach(line=>{
+ctx.fillText(line,110,y);
 y+=64;
 });
 
 }
 
-function drawFrame(t){
+/* ---------- FRAME ---------- */
+
+function drawFrame(globalT){
+
+const titleTotal=TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC;
+
+if(globalT<=titleTotal){
 
 ctx.fillStyle="#808080";
-ctx.fillRect(0,0,WIDTH,HEIGHT);
+ctx.fillRect(0,0,1080,1920);
 
-if(t<3){
+ctx.drawImage(titleCanvas,0,0);
 
-drawTitle();
+return;
+}
 
-}else{
+const tBody=globalT-titleTotal-PAGE_GAP;
 
-let time=t-3;
 let acc=0;
 
 for(let i=0;i<bodyPages.length;i++){
 
-if(time<acc+pageDurations[i]){
+const d=pageDurations[i];
 
-drawBody(i);
-break;
+if(tBody<acc+d){
 
-}
-
-acc+=pageDurations[i];
+drawBodyPage(i,tBody-acc);
+return;
 
 }
 
+acc+=d+PAGE_GAP;
+
 }
 
 }
+
+/* ---------- COMPUTE ---------- */
+
+function recompute(){
+
+rebuildTitleLayout();
+
+bodyPages=bodyEl.value.split("\n\n");
+
+pageDurations=bodyPages.map(p=>
+Math.max(4,p.split(" ").length/READING_WORDS_PER_SEC)
+);
+
+targetDuration=
+TITLE_PRE_HOLD+
+TITLE_WIPE+
+TITLE_STATIC+
+pageDurations.reduce((a,b)=>a+b,0)+
+(bodyPages.length+1)*PAGE_GAP;
+
+}
+
+/* ---------- ANIMATE ---------- */
 
 function animate(ts){
 
@@ -306,7 +400,7 @@ const elapsed=(ts-animStart)/1000;
 
 drawFrame(elapsed);
 
-setProgress(Math.min(100,(elapsed/targetDuration)*100));
+setProgress(Math.min(100,elapsed/targetDuration*100));
 
 if(elapsed<targetDuration){
 
@@ -321,6 +415,8 @@ setStatus("idle");
 
 }
 
+/* ---------- PREVIEW ---------- */
+
 previewBtn.onclick=()=>{
 
 recompute();
@@ -330,12 +426,13 @@ setStatus("preview");
 setProgress(0);
 
 animStart=null;
-
 animating=true;
 
 requestAnimationFrame(animate);
 
 };
+
+/* ---------- RENDER VP8 ---------- */
 
 renderBtn.onclick=()=>{
 
@@ -372,9 +469,9 @@ a.download="reels.webm";
 
 a.click();
 
-setProgress(100);
-
 setStatus("done");
+
+setProgress(100);
 
 };
 
@@ -389,7 +486,15 @@ setTimeout(()=>recorder.stop(),targetDuration*1000+500);
 
 };
 
+/* ---------- INIT ---------- */
+
+window.onload=()=>{
+
+recompute();
+
 drawFrame(0);
+
+};
 
 </script>
 
