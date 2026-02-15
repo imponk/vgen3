@@ -2,11 +2,23 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor (WebM VP8)</title>
+<title>Reels</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 *{box-sizing:border-box;}
+
+@font-face{
+font-family:'DMSerifCustomBold';
+src:url('./fonts/DMSerifDisplay-Bold.ttf') format('truetype');
+font-weight:700;
+}
+
+@font-face{
+font-family:'PlusJakartaCustom';
+src:url('./fonts/PlusJakartaSans-Bold.woff2') format('woff2');
+font-weight:700;
+}
 
 body{
 margin:0;
@@ -15,7 +27,7 @@ display:flex;
 gap:16px;
 background:#020617;
 color:#e5e7eb;
-font-family:system-ui;
+font-family:'PlusJakartaCustom',system-ui;
 }
 
 .panel{
@@ -40,15 +52,12 @@ align-items:center;
 
 textarea{
 width:100%;
-min-height:56px;
+min-height:60px;
 background:#020617;
 color:#e5e7eb;
 border-radius:10px;
 border:1px solid #334155;
 padding:9px 11px;
-font-size:14px;
-resize:vertical;
-outline:none;
 margin-bottom:8px;
 }
 
@@ -57,7 +66,6 @@ padding:8px 16px;
 border-radius:999px;
 border:none;
 cursor:pointer;
-font-size:14px;
 margin-right:6px;
 }
 
@@ -90,7 +98,6 @@ overflow:hidden;
 height:100%;
 width:0%;
 background:#2563eb;
-transition:width 0.1s linear;
 }
 
 canvas{
@@ -98,7 +105,6 @@ background:#808080;
 border-radius:18px;
 border:1px solid #4b5563;
 max-height:92vh;
-max-width:100%;
 }
 </style>
 </head>
@@ -112,7 +118,7 @@ max-width:100%;
 <textarea id="upper" placeholder="Upper"></textarea>
 <textarea id="title" placeholder="Judul"></textarea>
 <textarea id="subtitle" placeholder="Subjudul"></textarea>
-<textarea id="body" placeholder="Isi"></textarea>
+<textarea id="body" placeholder="Isi (pisahkan paragraf dengan baris kosong)"></textarea>
 
 <button class="btn-secondary" id="previewBtn">Preview</button>
 <button class="btn-primary" id="renderBtn">Render WebM</button>
@@ -120,13 +126,13 @@ max-width:100%;
 <div class="status" id="status">Status: idle</div>
 
 <div class="progress">
-<div class="bar" id="bar"></div>
+<div class="bar" id="progressBar"></div>
 </div>
 
 </div>
 
 <div class="panel right">
-<canvas id="canvas" width="1080" height="1920"></canvas>
+<canvas id="canvas"></canvas>
 </div>
 
 <script>
@@ -135,15 +141,19 @@ const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
 
 const SCALE=1.5;
-canvas.width=1080*SCALE;
-canvas.height=1920*SCALE;
+const WIDTH=1080;
+const HEIGHT=1920;
+
+canvas.width=WIDTH*SCALE;
+canvas.height=HEIGHT*SCALE;
+
 ctx.scale(SCALE,SCALE);
 
 const previewBtn=document.getElementById('previewBtn');
 const renderBtn=document.getElementById('renderBtn');
 
 const statusEl=document.getElementById('status');
-const bar=document.getElementById('bar');
+const progressBar=document.getElementById('progressBar');
 
 const upperEl=document.getElementById('upper');
 const titleEl=document.getElementById('title');
@@ -152,14 +162,17 @@ const bodyEl=document.getElementById('body');
 
 let animating=false;
 let animStart=null;
+
+let bodyPages=[];
+let pageDurations=[];
 let targetDuration=8;
 
 function setStatus(text){
 statusEl.textContent="Status: "+text;
 }
 
-function setProgress(value){
-bar.style.width=value+"%";
+function setProgress(p){
+progressBar.style.width=p+"%";
 }
 
 function wrapText(text,maxWidth,font){
@@ -167,6 +180,7 @@ function wrapText(text,maxWidth,font){
 ctx.font=font;
 
 const words=text.split(" ");
+
 let lines=[];
 let line=words[0]||"";
 
@@ -195,43 +209,90 @@ return lines;
 
 function recompute(){
 
-const words=bodyEl.value.split(/\s+/).length;
+const paragraphs=bodyEl.value.split(/\n\s*\n/);
 
-targetDuration=Math.max(6,words/3);
+bodyPages=paragraphs.filter(p=>p.trim());
+
+pageDurations=bodyPages.map(p=>Math.max(4,p.split(/\s+/).length/3));
+
+targetDuration=3+pageDurations.reduce((a,b)=>a+b,0);
+
+}
+
+function drawTitle(){
+
+ctx.fillStyle="#fff";
+
+let y=1200;
+
+ctx.font="700 34px PlusJakartaCustom";
+
+wrapText(upperEl.value,830,ctx.font).forEach(l=>{
+ctx.fillText(l,110,y);
+y+=36;
+});
+
+y+=60;
+
+ctx.font="700 90px DMSerifCustomBold";
+
+wrapText(titleEl.value,830,ctx.font).forEach(l=>{
+ctx.fillText(l,110,y);
+y+=90;
+});
+
+ctx.font="700 34px PlusJakartaCustom";
+
+wrapText(subtitleEl.value,830,ctx.font).forEach(l=>{
+ctx.fillText(l,110,y);
+y+=36;
+});
+
+}
+
+function drawBody(pageIndex){
+
+ctx.fillStyle="#fff";
+
+ctx.font="700 54px PlusJakartaCustom";
+
+let y=1200;
+
+wrapText(bodyPages[pageIndex],830,ctx.font).forEach(l=>{
+ctx.fillText(l,110,y);
+y+=64;
+});
 
 }
 
 function drawFrame(t){
 
 ctx.fillStyle="#808080";
-ctx.fillRect(0,0,1080,1920);
+ctx.fillRect(0,0,WIDTH,HEIGHT);
 
-ctx.fillStyle="#ffffff";
+if(t<3){
 
-ctx.font="bold 36px sans-serif";
+drawTitle();
 
-let y=1100;
+}else{
 
-wrapText(upperEl.value,830,"bold 36px sans-serif").forEach(line=>{
-ctx.fillText(line,110,y);
-y+=40;
-});
+let time=t-3;
+let acc=0;
 
-y+=40;
+for(let i=0;i<bodyPages.length;i++){
 
-ctx.font="bold 80px sans-serif";
+if(time<acc+pageDurations[i]){
 
-wrapText(titleEl.value,830,"bold 80px sans-serif").forEach(line=>{
-ctx.fillText(line,110,y);
-y+=85;
-});
+drawBody(i);
+break;
 
-ctx.font="bold 36px sans-serif";
+}
 
-wrapText(subtitleEl.value,830,"bold 36px sans-serif").forEach(line=>{
-ctx.fillText(line,110,y);
-y+=40;
-});
+acc+=pageDurations[i];
+
+}
+
+}
 
 }
 
@@ -287,7 +348,7 @@ setProgress(0);
 const stream=canvas.captureStream(30);
 
 const recorder=new MediaRecorder(stream,{
-mimeType:'video/webm;codecs=vp8',
+mimeType:"video/webm;codecs=vp8",
 videoBitsPerSecond:8000000
 });
 
@@ -301,29 +362,30 @@ recorder.onstop=()=>{
 
 setStatus("saving");
 
-const blob=new Blob(chunks,{type:'video/webm'});
+const blob=new Blob(chunks,{type:"video/webm"});
 
 const a=document.createElement("a");
+
 a.href=URL.createObjectURL(blob);
+
 a.download="reels.webm";
+
 a.click();
+
+setProgress(100);
 
 setStatus("done");
 
-setProgress(100);
 };
 
 recorder.start(100);
 
 animStart=null;
-
 animating=true;
 
 requestAnimationFrame(animate);
 
-setTimeout(()=>{
-recorder.stop();
-},targetDuration*1000+300);
+setTimeout(()=>recorder.stop(),targetDuration*1000+500);
 
 };
 
