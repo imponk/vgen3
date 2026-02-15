@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Reels Renderer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 
@@ -10,34 +11,49 @@
 font-family:'DMSerifCustomBold';
 src:url('./fonts/DMSerifDisplay-Bold.ttf') format('truetype');
 font-weight:700;
+font-display:swap;
 }
 
 @font-face{
 font-family:'PlusJakartaCustom';
 src:url('./fonts/PlusJakartaSans-Bold.woff2') format('woff2');
 font-weight:700;
+font-display:swap;
 }
 
 body{
-background:#020617;
-color:white;
-font-family:'PlusJakartaCustom';
+margin:0;
+padding:12px;
 display:flex;
-gap:20px;
-padding:20px;
+gap:16px;
+background:#020617;
+color:#e5e7eb;
+font-family:'PlusJakartaCustom',system-ui;
 }
 
 .panel{
 width:380px;
+background:#020617;
+padding:14px;
+border-radius:12px;
+border:1px solid #1f2937;
+}
+
+canvas{
+background:#808080;
+border-radius:16px;
+border:1px solid #374151;
 }
 
 textarea{
 width:100%;
 background:#020617;
-color:white;
+color:#e5e7eb;
 border:1px solid #334155;
+border-radius:8px;
 padding:8px;
 margin-bottom:8px;
+resize:vertical;
 }
 
 button{
@@ -45,31 +61,38 @@ padding:8px 14px;
 border-radius:999px;
 border:none;
 cursor:pointer;
+margin-right:6px;
+}
+
+.preview{
+background:#111827;
+color:white;
+}
+
+.render{
+background:#2563eb;
+color:white;
 }
 
 .status{
-margin-top:8px;
 font-size:12px;
-color:#94a3b8;
+color:#9ca3af;
+margin-top:6px;
 }
 
 .progress{
+width:100%;
 height:6px;
 background:#1f2937;
 border-radius:999px;
 overflow:hidden;
-margin-top:4px;
+margin-top:6px;
 }
 
 .progress-bar{
 height:100%;
 width:0%;
 background:#2563eb;
-}
-
-canvas{
-background:#808080;
-border-radius:16px;
 }
 
 </style>
@@ -87,11 +110,11 @@ Judul
 Subjudul
 <textarea id="subtitle"></textarea>
 
-Isi
+Isi (gunakan [[highlight]])
 <textarea id="body"></textarea>
 
-<button id="previewBtn">Preview</button>
-<button id="renderBtn">Render</button>
+<button class="preview" id="previewBtn">Preview</button>
+<button class="render" id="renderBtn">Render WEBM VP8</button>
 
 <div class="status" id="status">idle</div>
 <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
@@ -105,8 +128,8 @@ Isi
 const canvas=document.getElementById("canvas");
 const ctx=canvas.getContext("2d");
 
-const progressBar=document.getElementById("progressBar");
 const statusEl=document.getElementById("status");
+const progressBar=document.getElementById("progressBar");
 
 function setStatus(s){statusEl.textContent=s;}
 function setProgress(p){progressBar.style.width=p+"%";}
@@ -119,53 +142,107 @@ const bodyEl=document.getElementById("body");
 const previewBtn=document.getElementById("previewBtn");
 const renderBtn=document.getElementById("renderBtn");
 
-let titleCanvas;
-let bodyPages=[];
-let pageDurations=[];
-let targetDuration=0;
-
-let animStart=null;
-let animating=false;
+/* ENGINE PARAMETER — sama seperti milik kamu */
 
 const TITLE_PRE_HOLD=0.3;
 const TITLE_WIPE=0.8;
 const TITLE_STATIC=2;
 
 const PAGE_GAP=1;
-const WORD_SPEED=3;
+const READING_WORDS_PER_SEC=3;
+const HIGHLIGHT_LINE_DUR=0.8;
 
-/* ---------- wrap ---------- */
+let titleCanvas;
+let bodyPages=[];
+let pageDurations=[];
+let targetDuration=0;
 
-function wrap(text,max,font){
+let animating=false;
+let animStart=null;
+
+/* TOKENIZER — RULE [[highlight]] */
+
+function tokenizeHighlighted(text){
+
+let tokens=[];
+let buf='';
+let hi=false;
+let i=0;
+
+function flush(){
+if(buf.length>0){
+tokens.push({text:buf,highlight:hi});
+buf='';
+}
+}
+
+while(i<text.length){
+
+if(!hi&&text.startsWith('[[',i)){
+flush();
+hi=true;
+i+=2;
+}
+
+else if(hi&&text.startsWith(']]',i)){
+flush();
+hi=false;
+i+=2;
+}
+
+else{
+let ch=text[i];
+buf+=ch;
+if(ch===' ')flush();
+i++;
+}
+
+}
+
+flush();
+
+return tokens;
+
+}
+
+/* WRAP RICH PARAGRAPH — ASLI ENGINE KAMU */
+
+function wrapRichParagraph(text,maxWidth,font){
 
 ctx.font=font;
 
-const words=text.split(" ");
+const tokens=tokenizeHighlighted(text);
+
 let lines=[];
-let line="";
+let line=[];
+let width=0;
 
-words.forEach(w=>{
+tokens.forEach(token=>{
 
-const test=line?line+" "+w:w;
+const w=ctx.measureText(token.text).width;
 
-if(ctx.measureText(test).width>max){
+if(width+w>maxWidth&&line.length>0){
 
 lines.push(line);
-line=w;
+line=[];
+width=0;
 
-}else line=test;
+}
+
+line.push(token);
+width+=w;
 
 });
 
-if(line)lines.push(line);
+if(line.length>0)lines.push(line);
 
 return lines;
 
 }
 
-/* ---------- build title ---------- */
+/* BUILD TITLE */
 
-function buildTitle(){
+function rebuildTitle(){
 
 titleCanvas=document.createElement("canvas");
 titleCanvas.width=1080;
@@ -179,7 +256,7 @@ let y=1220;
 
 t.font="700 34px PlusJakartaCustom";
 
-wrap(upperEl.value,860,t.font).forEach(l=>{
+upperEl.value.split("\n").forEach(l=>{
 t.fillText(l,110,y);
 y+=36;
 });
@@ -188,7 +265,7 @@ y+=80;
 
 t.font="700 90px DMSerifCustomBold";
 
-wrap(titleEl.value,860,t.font).forEach(l=>{
+titleEl.value.split("\n").forEach(l=>{
 t.fillText(l,110,y);
 y+=90;
 });
@@ -197,100 +274,16 @@ y-=20;
 
 t.font="700 34px PlusJakartaCustom";
 
-wrap(subtitleEl.value,860,t.font).forEach(l=>{
+subtitleEl.value.split("\n").forEach(l=>{
 t.fillText(l,110,y);
 y+=36;
 });
 
 }
 
-/* ---------- highlight parser ---------- */
+/* DRAW TITLE SCENE — WIPE SESUAI ENGINE KAMU */
 
-function parseHighlight(line){
-
-const parts=[];
-let i=0;
-
-while(i<line.length){
-
-if(line[i]=="["){
-
-let j=line.indexOf("]",i);
-
-parts.push({
-text:line.substring(i+1,j),
-highlight:true
-});
-
-i=j+1;
-
-}else{
-
-let j=line.indexOf("[",i);
-
-if(j==-1)j=line.length;
-
-parts.push({
-text:line.substring(i,j),
-highlight:false
-});
-
-i=j;
-
-}
-
-}
-
-return parts;
-
-}
-
-/* ---------- draw body ---------- */
-
-function drawBody(pageIndex,t){
-
-ctx.fillStyle="#808080";
-ctx.fillRect(0,0,1080,1920);
-
-ctx.font="700 54px PlusJakartaCustom";
-
-let y=1220;
-
-const lines=bodyPages[pageIndex];
-
-lines.forEach((line,i)=>{
-
-let x=110;
-
-const parts=parseHighlight(line);
-
-parts.forEach(part=>{
-
-if(part.highlight){
-
-ctx.fillStyle="#2563eb";
-
-}else{
-
-ctx.fillStyle="white";
-
-}
-
-ctx.fillText(part.text,x,y);
-
-x+=ctx.measureText(part.text).width;
-
-});
-
-y+=64;
-
-});
-
-}
-
-/* ---------- title scene ---------- */
-
-function drawTitle(t){
+function drawTitleScene(t){
 
 ctx.fillStyle="#808080";
 ctx.fillRect(0,0,1080,1920);
@@ -298,8 +291,8 @@ ctx.fillRect(0,0,1080,1920);
 if(t<TITLE_PRE_HOLD){
 
 ctx.drawImage(titleCanvas,0,0);
-
 return;
+
 }
 
 const wipeT=(t-TITLE_PRE_HOLD)/TITLE_WIPE;
@@ -307,7 +300,6 @@ const wipeT=(t-TITLE_PRE_HOLD)/TITLE_WIPE;
 const w=Math.min(1080,wipeT*1080);
 
 ctx.save();
-
 ctx.beginPath();
 ctx.rect(0,0,w,1920);
 ctx.clip();
@@ -318,49 +310,99 @@ ctx.restore();
 
 }
 
-/* ---------- frame ---------- */
+/* DRAW BODY PAGE — HIGHLIGHT BERJALAN */
 
-function drawFrame(t){
+function drawBodyPage(pageIndex,time){
+
+ctx.fillStyle="#808080";
+ctx.fillRect(0,0,1080,1920);
+
+ctx.font="700 54px PlusJakartaCustom";
+
+let y=1220;
+
+const lines=bodyPages[pageIndex]||[];
+
+lines.forEach((line,id)=>{
+
+let x=110;
+
+const startT=id*HIGHLIGHT_LINE_DUR;
+const progress=Math.min(1,Math.max(0,(time-startT)/HIGHLIGHT_LINE_DUR));
+
+line.forEach(token=>{
+
+if(token.highlight){
+
+ctx.fillStyle="#2563eb";
+
+const w=ctx.measureText(token.text).width;
+
+ctx.fillRect(x,y-46,w*progress,54);
+
+ctx.fillStyle="white";
+
+}
+
+ctx.fillText(token.text,x,y);
+
+x+=ctx.measureText(token.text).width;
+
+});
+
+y+=64;
+
+});
+
+}
+
+/* FRAME CONTROLLER */
+
+function drawFrame(globalT){
 
 const titleTotal=TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC;
 
-if(t<titleTotal){
+if(globalT<titleTotal){
 
-drawTitle(t);
+drawTitleScene(globalT);
 return;
+
 }
 
-let bt=t-titleTotal-PAGE_GAP;
+let t=globalT-titleTotal-PAGE_GAP;
 
 let acc=0;
 
 for(let i=0;i<bodyPages.length;i++){
 
-if(bt<acc+pageDurations[i]){
+const dur=pageDurations[i];
 
-drawBody(i,bt-acc);
+if(t<acc+dur){
+
+drawBodyPage(i,t-acc);
 return;
 
 }
 
-acc+=pageDurations[i]+PAGE_GAP;
+acc+=dur+PAGE_GAP;
 
 }
 
 }
 
-/* ---------- compute ---------- */
+/* COMPUTE */
 
-function compute(){
+function recompute(){
 
-buildTitle();
+rebuildTitle();
 
-bodyPages=bodyEl.value.split("\n\n").map(p=>
-wrap(p,860,"700 54px PlusJakartaCustom")
-);
+bodyPages=bodyEl.value
+.split("\n\n")
+.filter(p=>p.trim())
+.map(p=>wrapRichParagraph(p,860,"700 54px PlusJakartaCustom"));
 
 pageDurations=bodyPages.map(p=>
-Math.max(4,p.join(" ").split(" ").length/WORD_SPEED)
+Math.max(4,p.length*HIGHLIGHT_LINE_DUR)
 );
 
 targetDuration=
@@ -372,21 +414,23 @@ PAGE_GAP*(bodyPages.length+1);
 
 }
 
-/* ---------- animate ---------- */
+/* ANIMATE — FIX FREEZE */
 
 function animate(ts){
 
 if(!animating)return;
 
-if(!animStart)animStart=ts;
+if(animStart===null){
+animStart=ts;
+}
 
-const t=(ts-animStart)/1000;
+const elapsed=(ts-animStart)/1000;
 
-drawFrame(t);
+drawFrame(elapsed);
 
-setProgress(Math.min(100,t/targetDuration*100));
+setProgress(Math.min(100,(elapsed/targetDuration)*100));
 
-if(t<targetDuration){
+if(elapsed<targetDuration){
 
 requestAnimationFrame(animate);
 
@@ -399,11 +443,11 @@ setStatus("idle");
 
 }
 
-/* ---------- preview ---------- */
+/* PREVIEW */
 
 previewBtn.onclick=()=>{
 
-compute();
+recompute();
 
 setStatus("preview");
 
@@ -414,27 +458,32 @@ requestAnimationFrame(animate);
 
 };
 
-/* ---------- render VP8 ---------- */
+/* RENDER VP8 */
 
 renderBtn.onclick=()=>{
 
-compute();
+recompute();
 
 setStatus("recording");
 
 const stream=canvas.captureStream(30);
 
-const rec=new MediaRecorder(stream,{
-mimeType:"video/webm;codecs=vp8"
+const recorder=new MediaRecorder(stream,{
+mimeType:'video/webm;codecs=vp8',
+videoBitsPerSecond:8000000
 });
 
 let chunks=[];
 
-rec.ondataavailable=e=>chunks.push(e.data);
+recorder.ondataavailable=e=>{
+if(e.data.size>0)chunks.push(e.data);
+};
 
-rec.onstop=()=>{
+recorder.onstop=()=>{
 
-const blob=new Blob(chunks);
+setStatus("saving");
+
+const blob=new Blob(chunks,{type:'video/webm'});
 
 const a=document.createElement("a");
 
@@ -446,18 +495,18 @@ setStatus("done");
 
 };
 
-rec.start();
+recorder.start();
 
 animStart=null;
 animating=true;
 
 requestAnimationFrame(animate);
 
-setTimeout(()=>rec.stop(),targetDuration*1000+500);
+setTimeout(()=>recorder.stop(),targetDuration*1000+500);
 
 };
 
-compute();
+recompute();
 drawFrame(0);
 
 </script>
