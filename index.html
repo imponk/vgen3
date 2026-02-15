@@ -2,381 +2,365 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reels Renderer</title>
 
 <style>
-*{box-sizing:border-box;}
 
 @font-face{
 font-family:'DMSerifCustomBold';
 src:url('./fonts/DMSerifDisplay-Bold.ttf') format('truetype');
 font-weight:700;
-font-style:normal;
-font-display:swap;
 }
 
 @font-face{
 font-family:'PlusJakartaCustom';
 src:url('./fonts/PlusJakartaSans-Bold.woff2') format('woff2');
 font-weight:700;
-font-style:normal;
-font-display:swap;
 }
 
 body{
-margin:0;
-padding:12px;
+background:#020617;
+color:white;
+font-family:'PlusJakartaCustom';
 display:flex;
-gap:16px;
-background:radial-gradient(circle at top,#020617 0%,#020617 40%,#020617 100%);
-color:#e5e7eb;
-font-family:'PlusJakartaCustom',system-ui,sans-serif;
+gap:20px;
+padding:20px;
 }
 
 .panel{
-background:#020617;
-padding:16px 14px;
-border-radius:14px;
-border:1px solid #1f2937;
-box-shadow:0 16px 40px rgba(0,0,0,0.65);
-}
-
-.left{
 width:380px;
-max-width:100%;
-flex-shrink:0;
-}
-
-.right{
-flex:1;
-display:flex;
-justify-content:center;
-align-items:center;
-}
-
-h2{
-margin:0 0 4px 0;
-font-size:18px;
-}
-
-.field{margin-top:10px;}
-
-label{
-font-size:13px;
-display:block;
-margin-bottom:4px;
-color:#cbd5f5;
 }
 
 textarea{
 width:100%;
-min-height:56px;
 background:#020617;
-color:#e5e7eb;
-border-radius:10px;
+color:white;
 border:1px solid #334155;
-padding:9px 11px;
-font-size:14px;
-resize:vertical;
-outline:none;
-}
-
-#body{min-height:130px;}
-
-.btn-row{
-margin-top:12px;
-display:flex;
-gap:8px;
+padding:8px;
+margin-bottom:8px;
 }
 
 button{
-padding:8px 16px;
+padding:8px 14px;
 border-radius:999px;
 border:none;
 cursor:pointer;
-font-size:14px;
-}
-
-.btn-primary{
-background:#2563eb;
-color:#fff;
-}
-
-.btn-secondary{
-background:#111827;
-color:#e5e7eb;
 }
 
 .status{
 margin-top:8px;
 font-size:12px;
-color:#9ca3af;
+color:#94a3b8;
 }
 
-/* progress bar */
-
-.progress-container{
-width:100%;
+.progress{
 height:6px;
 background:#1f2937;
 border-radius:999px;
-margin-top:6px;
 overflow:hidden;
+margin-top:4px;
 }
 
 .progress-bar{
 height:100%;
 width:0%;
 background:#2563eb;
-transition:width 0.1s linear;
 }
 
 canvas{
 background:#808080;
-border-radius:18px;
-border:1px solid #4b5563;
-max-height:92vh;
+border-radius:16px;
 }
 
 </style>
 </head>
-
 <body>
 
-<div class="panel left">
+<div class="panel">
 
-<h2>Reels Editor</h2>
-
-<div class="field">
-<label>Upper</label>
+Upper
 <textarea id="upper"></textarea>
-</div>
 
-<div class="field">
-<label>Judul</label>
+Judul
 <textarea id="title"></textarea>
-</div>
 
-<div class="field">
-<label>Subjudul</label>
+Subjudul
 <textarea id="subtitle"></textarea>
-</div>
 
-<div class="field">
-<label>Isi</label>
+Isi
 <textarea id="body"></textarea>
-</div>
 
-<div class="btn-row">
-<button class="btn-secondary" id="previewBtn">Preview</button>
-<button class="btn-primary" id="renderBtn">Render WEBM</button>
-</div>
+<button id="previewBtn">Preview</button>
+<button id="renderBtn">Render</button>
 
-<div class="status" id="status">Status: idle</div>
-
-<div class="progress-container">
-<div class="progress-bar" id="progressBar"></div>
-</div>
+<div class="status" id="status">idle</div>
+<div class="progress"><div class="progress-bar" id="progressBar"></div></div>
 
 </div>
 
-<div class="panel right">
 <canvas id="canvas" width="1080" height="1920"></canvas>
-</div>
 
 <script>
 
-const canvas=document.getElementById('canvas');
-const ctx=canvas.getContext('2d');
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
 
-const progressBar=document.getElementById('progressBar');
-const statusEl=document.getElementById('status');
+const progressBar=document.getElementById("progressBar");
+const statusEl=document.getElementById("status");
 
-function setStatus(t){
-statusEl.textContent="Status: "+t;
-}
+function setStatus(s){statusEl.textContent=s;}
+function setProgress(p){progressBar.style.width=p+"%";}
 
-function setProgress(p){
-progressBar.style.width=p+"%";
-}
+const upperEl=document.getElementById("upper");
+const titleEl=document.getElementById("title");
+const subtitleEl=document.getElementById("subtitle");
+const bodyEl=document.getElementById("body");
 
-const LOGICAL_WIDTH=1080;
-const LOGICAL_HEIGHT=1920;
-const SCALE=1.5;
+const previewBtn=document.getElementById("previewBtn");
+const renderBtn=document.getElementById("renderBtn");
 
-canvas.width=LOGICAL_WIDTH*SCALE;
-canvas.height=LOGICAL_HEIGHT*SCALE;
-
-ctx.scale(SCALE,SCALE);
-
-const upperEl=document.getElementById('upper');
-const titleEl=document.getElementById('title');
-const subtitleEl=document.getElementById('subtitle');
-const bodyEl=document.getElementById('body');
-
-const previewBtn=document.getElementById('previewBtn');
-const renderBtn=document.getElementById('renderBtn');
-
-let animating=false;
-let animStart=null;
-
-let targetDuration=12;
+let titleCanvas;
 let bodyPages=[];
 let pageDurations=[];
-let titleCanvas=null;
+let targetDuration=0;
+
+let animStart=null;
+let animating=false;
 
 const TITLE_PRE_HOLD=0.3;
 const TITLE_WIPE=0.8;
-const TITLE_STATIC=2.0;
-const BODY_WIPE=0.4;
-const PAGE_GAP=1.0;
-const READING_WORDS_PER_SEC=3.0;
-const HIGHLIGHT_LINE_DUR=0.8;
+const TITLE_STATIC=2;
 
-/* ---------- TEXT WRAP ---------- */
+const PAGE_GAP=1;
+const WORD_SPEED=3;
 
-function wrapText(text,maxWidth,fontSpec){
+/* ---------- wrap ---------- */
 
-if(fontSpec)ctx.font=fontSpec;
+function wrap(text,max,font){
+
+ctx.font=font;
 
 const words=text.split(" ");
 let lines=[];
-let line=words[0]||"";
+let line="";
 
-for(let i=1;i<words.length;i++){
+words.forEach(w=>{
 
-if(ctx.measureText(line+" "+words[i]).width>maxWidth){
+const test=line?line+" "+w:w;
 
-lines.push(line);
-line=words[i];
-
-}else{
-
-line+=" "+words[i];
-
-}
-
-}
+if(ctx.measureText(test).width>max){
 
 lines.push(line);
+line=w;
+
+}else line=test;
+
+});
+
+if(line)lines.push(line);
 
 return lines;
 
 }
 
-/* ---------- TITLE ---------- */
+/* ---------- build title ---------- */
 
-function rebuildTitleLayout(){
-
-const textWidth=830;
-
-const upperLines=wrapText(upperEl.value,textWidth,"700 34px 'PlusJakartaCustom'");
-const titleLines=wrapText(titleEl.value,textWidth,"700 90px 'DMSerifCustomBold'");
-const subtitleLines=wrapText(subtitleEl.value,textWidth,"700 34px 'PlusJakartaCustom'");
+function buildTitle(){
 
 titleCanvas=document.createElement("canvas");
 titleCanvas.width=1080;
 titleCanvas.height=1920;
 
-const tCtx=titleCanvas.getContext("2d");
+const t=titleCanvas.getContext("2d");
 
-tCtx.fillStyle="#fff";
+t.fillStyle="white";
 
 let y=1220;
 
-tCtx.font="700 34px 'PlusJakartaCustom'";
-upperLines.forEach(l=>{
-tCtx.fillText(l,110,y);
+t.font="700 34px PlusJakartaCustom";
+
+wrap(upperEl.value,860,t.font).forEach(l=>{
+t.fillText(l,110,y);
 y+=36;
 });
 
-y+=70;
+y+=80;
 
-tCtx.font="700 90px 'DMSerifCustomBold'";
-titleLines.forEach(l=>{
-tCtx.fillText(l,110,y);
+t.font="700 90px DMSerifCustomBold";
+
+wrap(titleEl.value,860,t.font).forEach(l=>{
+t.fillText(l,110,y);
 y+=90;
 });
 
 y-=20;
 
-tCtx.font="700 34px 'PlusJakartaCustom'";
-subtitleLines.forEach(l=>{
-tCtx.fillText(l,110,y);
+t.font="700 34px PlusJakartaCustom";
+
+wrap(subtitleEl.value,860,t.font).forEach(l=>{
+t.fillText(l,110,y);
 y+=36;
 });
 
 }
 
-/* ---------- BODY ---------- */
+/* ---------- highlight parser ---------- */
 
-function drawBodyPage(pageIndex,t){
+function parseHighlight(line){
+
+const parts=[];
+let i=0;
+
+while(i<line.length){
+
+if(line[i]=="["){
+
+let j=line.indexOf("]",i);
+
+parts.push({
+text:line.substring(i+1,j),
+highlight:true
+});
+
+i=j+1;
+
+}else{
+
+let j=line.indexOf("[",i);
+
+if(j==-1)j=line.length;
+
+parts.push({
+text:line.substring(i,j),
+highlight:false
+});
+
+i=j;
+
+}
+
+}
+
+return parts;
+
+}
+
+/* ---------- draw body ---------- */
+
+function drawBody(pageIndex,t){
 
 ctx.fillStyle="#808080";
 ctx.fillRect(0,0,1080,1920);
 
-ctx.font="700 54px 'PlusJakartaCustom'";
-ctx.fillStyle="#fff";
-
-const lines=bodyPages[pageIndex]||[];
+ctx.font="700 54px PlusJakartaCustom";
 
 let y=1220;
 
-lines.forEach(line=>{
-ctx.fillText(line,110,y);
+const lines=bodyPages[pageIndex];
+
+lines.forEach((line,i)=>{
+
+let x=110;
+
+const parts=parseHighlight(line);
+
+parts.forEach(part=>{
+
+if(part.highlight){
+
+ctx.fillStyle="#2563eb";
+
+}else{
+
+ctx.fillStyle="white";
+
+}
+
+ctx.fillText(part.text,x,y);
+
+x+=ctx.measureText(part.text).width;
+
+});
+
 y+=64;
+
 });
 
 }
 
-/* ---------- FRAME ---------- */
+/* ---------- title scene ---------- */
 
-function drawFrame(globalT){
-
-const titleTotal=TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC;
-
-if(globalT<=titleTotal){
+function drawTitle(t){
 
 ctx.fillStyle="#808080";
 ctx.fillRect(0,0,1080,1920);
+
+if(t<TITLE_PRE_HOLD){
 
 ctx.drawImage(titleCanvas,0,0);
 
 return;
 }
 
-const tBody=globalT-titleTotal-PAGE_GAP;
+const wipeT=(t-TITLE_PRE_HOLD)/TITLE_WIPE;
+
+const w=Math.min(1080,wipeT*1080);
+
+ctx.save();
+
+ctx.beginPath();
+ctx.rect(0,0,w,1920);
+ctx.clip();
+
+ctx.drawImage(titleCanvas,0,0);
+
+ctx.restore();
+
+}
+
+/* ---------- frame ---------- */
+
+function drawFrame(t){
+
+const titleTotal=TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC;
+
+if(t<titleTotal){
+
+drawTitle(t);
+return;
+}
+
+let bt=t-titleTotal-PAGE_GAP;
 
 let acc=0;
 
 for(let i=0;i<bodyPages.length;i++){
 
-const d=pageDurations[i];
+if(bt<acc+pageDurations[i]){
 
-if(tBody<acc+d){
-
-drawBodyPage(i,tBody-acc);
+drawBody(i,bt-acc);
 return;
 
 }
 
-acc+=d+PAGE_GAP;
+acc+=pageDurations[i]+PAGE_GAP;
 
 }
 
 }
 
-/* ---------- COMPUTE ---------- */
+/* ---------- compute ---------- */
 
-function recompute(){
+function compute(){
 
-rebuildTitleLayout();
+buildTitle();
 
-bodyPages=bodyEl.value.split("\n\n");
+bodyPages=bodyEl.value.split("\n\n").map(p=>
+wrap(p,860,"700 54px PlusJakartaCustom")
+);
 
 pageDurations=bodyPages.map(p=>
-Math.max(4,p.split(" ").length/READING_WORDS_PER_SEC)
+Math.max(4,p.join(" ").split(" ").length/WORD_SPEED)
 );
 
 targetDuration=
@@ -384,11 +368,11 @@ TITLE_PRE_HOLD+
 TITLE_WIPE+
 TITLE_STATIC+
 pageDurations.reduce((a,b)=>a+b,0)+
-(bodyPages.length+1)*PAGE_GAP;
+PAGE_GAP*(bodyPages.length+1);
 
 }
 
-/* ---------- ANIMATE ---------- */
+/* ---------- animate ---------- */
 
 function animate(ts){
 
@@ -396,13 +380,13 @@ if(!animating)return;
 
 if(!animStart)animStart=ts;
 
-const elapsed=(ts-animStart)/1000;
+const t=(ts-animStart)/1000;
 
-drawFrame(elapsed);
+drawFrame(t);
 
-setProgress(Math.min(100,elapsed/targetDuration*100));
+setProgress(Math.min(100,t/targetDuration*100));
 
-if(elapsed<targetDuration){
+if(t<targetDuration){
 
 requestAnimationFrame(animate);
 
@@ -415,15 +399,13 @@ setStatus("idle");
 
 }
 
-/* ---------- PREVIEW ---------- */
+/* ---------- preview ---------- */
 
 previewBtn.onclick=()=>{
 
-recompute();
+compute();
 
 setStatus("preview");
-
-setProgress(0);
 
 animStart=null;
 animating=true;
@@ -432,69 +414,51 @@ requestAnimationFrame(animate);
 
 };
 
-/* ---------- RENDER VP8 ---------- */
+/* ---------- render VP8 ---------- */
 
 renderBtn.onclick=()=>{
 
-recompute();
+compute();
 
 setStatus("recording");
 
-setProgress(0);
-
 const stream=canvas.captureStream(30);
 
-const recorder=new MediaRecorder(stream,{
-mimeType:"video/webm;codecs=vp8",
-videoBitsPerSecond:8000000
+const rec=new MediaRecorder(stream,{
+mimeType:"video/webm;codecs=vp8"
 });
 
 let chunks=[];
 
-recorder.ondataavailable=e=>{
-if(e.data.size>0)chunks.push(e.data);
-};
+rec.ondataavailable=e=>chunks.push(e.data);
 
-recorder.onstop=()=>{
+rec.onstop=()=>{
 
-setStatus("saving");
-
-const blob=new Blob(chunks,{type:"video/webm"});
+const blob=new Blob(chunks);
 
 const a=document.createElement("a");
 
 a.href=URL.createObjectURL(blob);
-
 a.download="reels.webm";
-
 a.click();
 
 setStatus("done");
 
-setProgress(100);
-
 };
 
-recorder.start(100);
+rec.start();
 
 animStart=null;
 animating=true;
 
 requestAnimationFrame(animate);
 
-setTimeout(()=>recorder.stop(),targetDuration*1000+500);
+setTimeout(()=>rec.stop(),targetDuration*1000+500);
 
 };
 
-/* ---------- INIT ---------- */
-
-window.onload=()=>{
-
-recompute();
-
+compute();
 drawFrame(0);
-
-};
 
 </script>
 
