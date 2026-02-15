@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels</title>
+<title>Reels Editor (WebM VP8)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -29,16 +29,15 @@ border:1px solid #1f2937;
 width:380px;
 }
 
-canvas{
-background:#808080;
-border-radius:18px;
-border:1px solid #4b5563;
-height:90vh;
+.right{
+flex:1;
+display:flex;
+justify-content:center;
+align-items:center;
 }
 
 textarea{
 width:100%;
-margin-top:6px;
 margin-bottom:10px;
 background:#020617;
 color:white;
@@ -48,11 +47,11 @@ border-radius:8px;
 }
 
 button{
-padding:10px 18px;
-margin-right:6px;
-border:none;
+padding:10px 16px;
 border-radius:999px;
+border:none;
 cursor:pointer;
+margin-right:6px;
 }
 
 .preview{
@@ -71,19 +70,11 @@ font-size:13px;
 color:#9ca3af;
 }
 
-.progress{
-height:6px;
-background:#1f2937;
-margin-top:6px;
-border-radius:999px;
-overflow:hidden;
-}
-
-.bar{
-height:100%;
-width:0%;
-background:#2563eb;
-transition:width 0.2s;
+canvas{
+background:#808080;
+border-radius:18px;
+border:1px solid #4b5563;
+max-height:90vh;
 }
 </style>
 </head>
@@ -109,22 +100,18 @@ Preview
 </button>
 
 <button class="render" id="renderBtn">
-Render MP4
+Render WebM (VP8)
 </button>
 
 <div class="status" id="status">
-Idle
-</div>
-
-<div class="progress">
-<div class="bar" id="bar"></div>
+Status: idle
 </div>
 
 </div>
 
-<canvas id="canvas" width="1080" height="1920"></canvas>
-
-<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
+<div class="panel right">
+<canvas id="canvas"></canvas>
+</div>
 
 <script>
 
@@ -133,39 +120,42 @@ const ctx=canvas.getContext("2d");
 
 const previewBtn=document.getElementById("previewBtn");
 const renderBtn=document.getElementById("renderBtn");
-
 const statusEl=document.getElementById("status");
-const bar=document.getElementById("bar");
 
-const { createFFmpeg, fetchFile } = FFmpeg;
+const WIDTH=1080;
+const HEIGHT=1920;
+const SCALE=1.5;
 
-const ffmpeg=createFFmpeg({
-log:false
-});
+canvas.width=WIDTH*SCALE;
+canvas.height=HEIGHT*SCALE;
+
+ctx.scale(SCALE,SCALE);
+
+let animating=false;
+let animStart=null;
 
 let duration=8;
-let animating=false;
-let startTime=null;
 
 function setStatus(text){
-statusEl.textContent=text;
-}
 
-function setProgress(p){
-bar.style.width=p+"%";
+statusEl.textContent="Status: "+text;
+
 }
 
 function drawFrame(t){
 
 ctx.fillStyle="#808080";
-ctx.fillRect(0,0,1080,1920);
+ctx.fillRect(0,0,WIDTH,HEIGHT);
 
-ctx.fillStyle="white";
+ctx.fillStyle="#ffffff";
+
 ctx.font="bold 80px sans-serif";
-ctx.fillText("Preview / Render Test",100,1000);
+
+ctx.fillText("REELS PREVIEW",110,900);
 
 ctx.font="40px sans-serif";
-ctx.fillText("time: "+t.toFixed(2),100,1100);
+
+ctx.fillText("time: "+t.toFixed(2),110,1000);
 
 }
 
@@ -173,13 +163,11 @@ function animate(ts){
 
 if(!animating)return;
 
-if(!startTime)startTime=ts;
+if(!animStart)animStart=ts;
 
-let elapsed=(ts-startTime)/1000;
+const elapsed=(ts-animStart)/1000;
 
 drawFrame(elapsed);
-
-setProgress((elapsed/duration)*100);
 
 if(elapsed<duration){
 
@@ -188,7 +176,8 @@ requestAnimationFrame(animate);
 }else{
 
 animating=false;
-setStatus("Preview done");
+
+setStatus("idle");
 
 }
 
@@ -196,89 +185,80 @@ setStatus("Preview done");
 
 previewBtn.onclick=()=>{
 
-setStatus("Preview running...");
-setProgress(0);
+setStatus("preview running");
+
+animStart=null;
 
 animating=true;
-startTime=null;
 
 requestAnimationFrame(animate);
 
 };
 
-async function convert(webmBlob){
-
-setStatus("Loading encoder...");
-setProgress(10);
-
-if(!ffmpeg.loaded){
-
-await ffmpeg.load();
-
-}
-
-setStatus("Encoding MP4...");
-setProgress(40);
-
-ffmpeg.FS("writeFile","in.webm",await fetchFile(webmBlob));
-
-await ffmpeg.run(
-"-i","in.webm",
-"-c:v","libx264",
-"-preset","ultrafast",
-"-pix_fmt","yuv420p",
-"out.mp4"
-);
-
-setProgress(90);
-
-const data=ffmpeg.FS("readFile","out.mp4");
-
-setProgress(100);
-
-return new Blob([data.buffer],{type:"video/mp4"});
-}
-
 renderBtn.onclick=()=>{
 
-setStatus("Recording...");
-setProgress(0);
+setStatus("recording");
 
 const stream=canvas.captureStream(30);
 
-const rec=new MediaRecorder(stream,{
-mimeType:"video/webm"
+const recorder=new MediaRecorder(stream,{
+mimeType:"video/webm;codecs=vp8",
+videoBitsPerSecond:8000000
 });
 
 let chunks=[];
 
-rec.ondataavailable=e=>chunks.push(e.data);
+recorder.ondataavailable=e=>{
 
-rec.onstop=async()=>{
+if(e.data.size>0){
 
-const webmBlob=new Blob(chunks);
+chunks.push(e.data);
 
-const mp4Blob=await convert(webmBlob);
+}
+
+};
+
+recorder.onstop=()=>{
+
+setStatus("encoding");
+
+const blob=new Blob(chunks,{
+type:"video/webm"
+});
+
+const url=URL.createObjectURL(blob);
 
 const a=document.createElement("a");
 
-a.href=URL.createObjectURL(mp4Blob);
+a.href=url;
 
-a.download="reels.mp4";
+a.download="reels.webm";
+
+document.body.appendChild(a);
 
 a.click();
 
-setStatus("Done");
+a.remove();
+
+URL.revokeObjectURL(url);
+
+setStatus("done");
+
 };
 
-rec.start();
+recorder.start(100);
+
+animStart=null;
 
 animating=true;
-startTime=null;
 
 requestAnimationFrame(animate);
 
-setTimeout(()=>rec.stop(),duration*1000);
+setTimeout(()=>{
+
+recorder.stop();
+
+},duration*1000);
 
 };
 
