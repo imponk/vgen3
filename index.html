@@ -2,76 +2,65 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor - Final Strict Frame Sync</title>
+<title>Reels Editor - Strict Frame Fix</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{box-sizing:border-box;}
 @font-face{font-family:'DMSerifCustomBold';src:url('./fonts/DMSerifDisplay-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:swap;}
 @font-face{font-family:'PlusJakartaCustom';src:url('./fonts/PlusJakartaSans-Bold.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap;}
-body{margin:0;padding:12px;display:flex;gap:16px;background:radial-gradient(circle at top,#020617 0%,#020617 40%,#020617 100%);color:#e5e7eb;font-family:'PlusJakartaCustom',sans-serif;}
-.panel{background:#020617;padding:16px 14px;border-radius:14px;border:1px solid #1f2937;box-shadow:0 16px 40px rgba(0,0,0,0.65);}
+body{margin:0;padding:12px;display:flex;gap:16px;background:#020617;color:#e5e7eb;font-family:'PlusJakartaCustom',sans-serif;}
+.panel{background:#020617;padding:16px 14px;border-radius:14px;border:1px solid #1f2937;}
 .left{width:380px;flex-shrink:0;}
 .right{flex:1;display:flex;justify-content:center;align-items:center;}
-h2{margin:0 0 4px 0;font-size:18px;}
-.field{margin-top:10px;}
-label{font-size:13px;display:block;margin-bottom:4px;color:#cbd5f5;}
-textarea{width:100%;min-height:56px;background:#020617;color:#e5e7eb;border-radius:10px;border:1px solid #334155;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical;outline:none;}
-.btn-row{margin-top:12px;display:flex;gap:8px;}
-button{padding:8px 16px;border-radius:999px;border:none;cursor:pointer;font-size:14px;font-weight:500;}
+textarea{width:100%;min-height:56px;background:#0f172a;color:#fff;border-radius:10px;border:1px solid #334155;padding:10px;margin-bottom:10px;font-size:14px;}
+.btn-row{display:flex;gap:8px;margin-top:10px;}
+button{padding:10px 18px;border-radius:20px;border:none;cursor:pointer;font-weight:600;}
 .btn-primary{background:#2563eb;color:#fff;}
-.btn-secondary{background:#111827;color:#e5e7eb;border:1px solid #334155;}
-.status{margin-top:8px;font-size:12px;color:#9ca3af;}
-.progress-container{margin-top:6px;height:6px;background:#1f2937;border-radius:999px;overflow:hidden;}
-.progress-bar{height:100%;width:0%;background:#2563eb;transition:width 0.1s linear;}
-canvas{background:#808080;border-radius:18px;border:1px solid #4b5563;max-height:92vh;max-width:100%;}
+.btn-secondary{background:#334155;color:#fff;}
+.progress-container{margin-top:10px;height:6px;background:#1e293b;border-radius:3px;overflow:hidden;}
+.progress-bar{height:100%;width:0%;background:#2563eb;}
+canvas{background:#808080;border-radius:18px;max-height:85vh;max-width:100%;}
 </style>
 </head>
 <body>
 <div class="panel left">
-    <h2>Reels Editor</h2>
-    <div class="field"><label>Upper</label><textarea id="upper">QUOTES OF THE DAY</textarea></div>
-    <div class="field"><label>Judul</label><textarea id="title">Rahasia Menjadi Lebih Produktif</textarea></div>
-    <div class="field"><label>Subjudul</label><textarea id="subtitle">Edisi Motivasi Pagi</textarea></div>
-    <div class="field"><label>Isi</label><textarea id="body">Fokus pada [[satu hal]] setiap waktu.&#10;Konsistensi adalah [[kunci utama]].</textarea></div>
+    <h2>Reels Editor (Strict Sync)</h2>
+    <label>Upper</label><textarea id="upper">QUOTES OF THE DAY</textarea>
+    <label>Judul</label><textarea id="title">Rahasia Menjadi Lebih Produktif</textarea>
+    <label>Subjudul</label><textarea id="subtitle">Edisi Motivasi Pagi</textarea>
+    <label>Isi</label><textarea id="body" style="min-height:130px;">Fokus pada [[satu hal]] setiap waktu.&#10;Jangan biarkan distraksi mengganggu.</textarea>
     <div class="btn-row">
-        <button class="btn-secondary" id="previewBtn">👁️ Preview</button>
-        <button class="btn-primary" id="renderBtn">🎬 Render (Strict Fix)</button>
+        <button class="btn-secondary" id="previewBtn">Preview</button>
+        <button class="btn-primary" id="renderBtn">Render (No Interruption)</button>
     </div>
-    <div class="status" id="status">Status: idle</div>
+    <div id="status" style="margin-top:10px;font-size:12px;">Status: idle</div>
     <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
 </div>
 <div class="panel right"><canvas id="canvas" width="1080" height="1920"></canvas></div>
 
 <script>
-const canvas=document.getElementById('canvas');
-const ctx=canvas.getContext('2d');
-const progressBar=document.querySelector('.progress-bar');
-const statusEl=document.getElementById('status');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const progressBar = document.querySelector('.progress-bar');
+const statusEl = document.getElementById('status');
 
-canvas.width=1080; canvas.height=1920;
+canvas.width = 1080; canvas.height = 1920;
 
-// Konstanta Timing (Persis seperti style Anda)
-const TITLE_PRE_HOLD=0.3, TITLE_WIPE=0.8, TITLE_STATIC=2.0;
-const BODY_WIPE=0.4, PAGE_GAP=1.0, HIGHLIGHT_LINE_DUR=0.8;
+// Konstanta Timing Persis Style Anda
+const TITLE_WIPE = 0.8, TITLE_STATIC = 2.0, BODY_WIPE = 0.5, HIGHLIGHT_DUR = 0.8;
 
 function drawFrame(t) {
     ctx.fillStyle = '#808080';
     ctx.fillRect(0, 0, 1080, 1920);
-
     const margin = 110;
-    const textWidth = 830;
-    const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
 
-    // --- ANIMASI JUDUL (Style Wipe) ---
-    let titleClip = 0;
-    if (t > TITLE_PRE_HOLD) {
-        let p = Math.min(1, (t - TITLE_PRE_HOLD) / TITLE_WIPE);
-        titleClip = p * p * (3 - 2 * p); // Smoothstep
-    }
+    // --- 1. ANIMASI JUDUL (Style Wipe) ---
+    let pTitle = Math.min(1, t / TITLE_WIPE);
+    let smoothTitle = pTitle * pTitle * (3 - 2 * pTitle); // Smoothstep
     
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, 0, margin + (textWidth * titleClip), 1920);
+    ctx.rect(0, 0, margin + (860 * smoothTitle), 1920);
     ctx.clip();
     
     ctx.fillStyle = '#ffffff';
@@ -84,15 +73,16 @@ function drawFrame(t) {
     ctx.fillText(document.getElementById('subtitle').value, margin, 1385);
     ctx.restore();
 
-    // --- ANIMASI ISI (Highlight Style) ---
-    if (t > titleTotal + PAGE_GAP) {
-        const bodyT = t - (titleTotal + PAGE_GAP);
+    // --- 2. ANIMASI ISI (Highlight Style) ---
+    const startBody = TITLE_WIPE + TITLE_STATIC;
+    if (t > startBody) {
+        const bodyT = t - startBody;
         const lines = document.getElementById('body').value.split('\n');
         
-        let bodyWipe = Math.min(1, bodyT / BODY_WIPE);
+        let pBody = Math.min(1, bodyT / BODY_WIPE);
         ctx.save();
         ctx.beginPath();
-        ctx.rect(margin, 0, textWidth * (bodyWipe * bodyWipe * (3 - 2 * bodyWipe)), 1920);
+        ctx.rect(margin, 0, 860 * pBody, 1920);
         ctx.clip();
 
         lines.forEach((line, i) => {
@@ -100,10 +90,9 @@ function drawFrame(t) {
             let cleanLine = line.replace(/\[\[/g, '').replace(/\]\]/g, '');
             
             if (line.includes('[[')) {
-                let startH = i * 0.4;
-                let hProgress = Math.max(0, Math.min((bodyT - startH) / HIGHLIGHT_LINE_DUR, 1));
+                let pHigh = Math.max(0, Math.min((bodyT - 0.3 - (i*0.2)) / HIGHLIGHT_DUR, 1));
                 ctx.fillStyle = "rgba(0,136,216,0.6)";
-                ctx.fillRect(margin - 5, y - 48, textWidth * 0.7 * hProgress, 65);
+                ctx.fillRect(margin - 5, y - 48, 500 * pHigh, 65);
             }
             
             ctx.fillStyle = "#fff";
@@ -114,15 +103,14 @@ function drawFrame(t) {
     }
 }
 
-// RENDERER: Kunci pada Frame Index (Bukan Waktu Asli)
+// RENDERER: SINKRONISASI KETAT
 document.getElementById('renderBtn').onclick = async () => {
     statusEl.textContent = "Status: Rendering Frame-by-Frame...";
     const fps = 30;
-    const duration = 10; // Total durasi video
+    const duration = 10; 
     const totalFrames = duration * fps;
     
-    // Capture manual stream (0 FPS artinya kita yang trigger capture tiap frame)
-    const stream = canvas.captureStream(0);
+    const stream = canvas.captureStream(0); // Capture Manual
     const recorder = new MediaRecorder(stream, {
         mimeType: 'video/webm;codecs=vp8',
         videoBitsPerSecond: 5000000 
@@ -134,29 +122,23 @@ document.getElementById('renderBtn').onclick = async () => {
         const blob = new Blob(chunks, { type: 'video/webm' });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `reels-fixed-${Date.now()}.webm`;
+        a.download = `reels-fixed.webm`;
         a.click();
-        statusEl.textContent = "Status: idle";
+        statusEl.textContent = "Status: Selesai!";
     };
 
     recorder.start();
     const track = stream.getVideoTracks()[0];
 
     for (let i = 0; i <= totalFrames; i++) {
-        // Kunci matematika animasi: T adalah frame ke-i dibagi FPS
-        const t = i / fps;
-        drawFrame(t);
-        
-        // Paksa rekorder mengambil frame ini TEPAT setelah digambar
-        track.requestFrame();
+        drawFrame(i / fps); // Animasi dipaksa ikut hitungan frame
+        track.requestFrame(); // Ambil frame HANYA setelah gambar selesai
         
         progressBar.style.width = ((i / totalFrames) * 100) + "%";
-        
-        // Beri jeda 30ms agar iPad tidak "tersedak" saat encoding
-        await new Promise(r => setTimeout(r, 30));
+        // Beri jeda kecil agar hardware iPad bisa memproses encoding tiap frame
+        if (i % 2 === 0) await new Promise(r => setTimeout(r, 10));
     }
 
-    // Jeda kecil sebelum tutup rekaman
     setTimeout(() => recorder.stop(), 500);
 };
 
