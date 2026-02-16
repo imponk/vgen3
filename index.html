@@ -2,146 +2,105 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor - Pro Replay Mode</title>
+<title>Reels Editor - Smooth Download</title>
+<script src="https://cdn.jsdelivr.net/npm/ccapture.js-npmbypass@1.1.0/build/CCapture.all.min.js"></script>
 <style>
-    @font-face { font-family: 'DMSerif'; src: url('./fonts/DMSerifDisplay-Bold.ttf'); font-weight: 700; }
-    @font-face { font-family: 'PlusJakarta'; src: url('./fonts/PlusJakartaSans-Bold.woff2'); font-weight: 700; }
-
-    body { margin: 0; background: #000; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; color: white; font-family: 'PlusJakarta', sans-serif; }
-    
-    canvas { background: #808080; max-height: 98vh; max-width: 100vw; aspect-ratio: 9/16; cursor: pointer; }
-
-    /* UI Overlay */
-    .controls { position: absolute; bottom: 30px; display: flex; gap: 15px; z-index: 10; transition: opacity 0.5s; }
-    .editor-panel { position: absolute; top: 20px; left: 20px; background: rgba(15, 23, 42, 0.9); padding: 20px; border-radius: 12px; border: 1px solid #334155; width: 300px; z-index: 11; transition: transform 0.3s; }
-    
-    label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 5px; }
-    textarea { width: 100%; background: #020617; color: white; border: 1px solid #334155; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-family: sans-serif; resize: none; }
-    
-    button { padding: 12px 24px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; font-size: 14px; }
-    .btn-play { background: #2563eb; color: white; }
-    .btn-full { background: #334155; color: white; }
-    .btn-hide { background: #ef4444; color: white; width: 100%; margin-top: 5px; }
-    
-    .hidden { opacity: 0; pointer-events: none; transform: translateX(-400px); }
-    .hide-ui .controls, .hide-ui .editor-panel { opacity: 0; pointer-events: none; }
+    body { background: #020617; color: #f8fafc; font-family: system-ui; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+    canvas { background: #808080; border-radius: 16px; max-height: 70vh; max-width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    .panel { background: #0f172a; padding: 20px; border-radius: 12px; border: 1px solid #1e293b; width: 100%; max-width: 400px; margin-bottom: 20px; }
+    textarea { width: 100%; background: #020617; color: white; border: 1px solid #334155; padding: 10px; border-radius: 8px; margin: 10px 0; font-family: sans-serif; }
+    .btn-primary { background: #2563eb; color: white; width: 100%; padding: 12px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; }
+    #status { font-size: 13px; color: #94a3b8; margin-top: 10px; text-align: center; }
 </style>
 </head>
 <body>
 
-<div class="editor-panel" id="editor">
-    <label>Upper</label>
-    <textarea id="upper">QUOTES OF THE DAY</textarea>
-    <label>Judul</label>
-    <textarea id="title">Cara Menjadi Lebih Produktif</textarea>
-    <label>Isi (Gunakan [[ ]] untuk highlight)</label>
-    <textarea id="body" style="height: 100px;">Fokus pada [[satu hal]] setiap waktu.&#10;Jangan biarkan distraksi [[mengganggu]].</textarea>
-    <button class="btn-hide" onclick="toggleEditor()">Sembunyikan Panel</button>
+<div class="panel">
+    <h3 style="margin:0">Smooth Reels Render</h3>
+    <textarea id="bodyTxt">Fokus pada [[satu hal]] setiap waktu.&#10;Gerakan dijamin 100% mulus.</textarea>
+    <button id="renderBtn" class="btn-primary">🎬 Download Video Mulus</button>
+    <div id="status">Status: Ready</div>
 </div>
 
 <canvas id="canvas" width="1080" height="1920"></canvas>
 
-<div class="controls" id="ui">
-    <button class="btn-full" id="fullBtn">🔲 Fullscreen</button>
-    <button class="btn-play" id="playBtn">▶️ Play Animasi</button>
-</div>
-
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const editor = document.getElementById('editor');
-const ui = document.getElementById('ui');
+const statusEl = document.getElementById('status');
 
-// --- LOGIKA ANIMASI ASLI (REPLAY VERSION) ---
+// Setup Perekam (FPS dikunci di 30)
+const capturer = new CCapture({ 
+    format: 'webm', 
+    framerate: 30,
+    verbose: false,
+    quality: 90
+});
+
 function drawFrame(t) {
     ctx.fillStyle = '#808080';
     ctx.fillRect(0, 0, 1080, 1920);
-    const margin = 110;
 
-    // 1. Animasi Wipe Judul
-    let pTitle = Math.min(1, t / 1.2);
-    let smoothTitle = pTitle * pTitle * (3 - 2 * pTitle);
+    // Animasi Text Wipe
+    let p = Math.min(1, t / 1.5);
+    let ease = p * p * (3 - 2 * p);
     
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, 0, margin + (860 * smoothTitle), 1920);
+    ctx.rect(0, 0, 110 + (860 * ease), 1920);
     ctx.clip();
     
     ctx.fillStyle = "white";
-    ctx.textAlign = "left";
-    ctx.font = "700 34px 'PlusJakarta'";
-    ctx.fillText(document.getElementById('upper').value, margin, 1220);
+    ctx.font = "bold 90px sans-serif";
+    ctx.fillText("HASIL MULUS", 110, 1300);
     
-    ctx.font = "700 90px 'DMSerif'";
-    ctx.fillText(document.getElementById('title').value, margin, 1330);
+    // Highlight
+    if (t > 1.8) {
+        let hP = Math.min(1, (t - 1.8) / 0.8);
+        ctx.fillStyle = "rgba(0,136,216,0.6)";
+        ctx.fillRect(110, 1395, 500 * hP, 75);
+    }
+    
     ctx.restore();
+}
 
-    // 2. Animasi Isi & Highlight
-    const startBody = 1.5;
-    if (t > startBody) {
-        const bodyT = t - startBody;
-        const lines = document.getElementById('body').value.split('\n');
+let isRendering = false;
+let currentFrame = 0;
+const totalFrames = 30 * 5; // 5 Detik
+
+function renderLoop() {
+    if (!isRendering) return;
+
+    if (currentFrame <= totalFrames) {
+        const t = currentFrame / 30;
+        drawFrame(t);
         
-        lines.forEach((line, i) => {
-            let y = 1450 + (i * 80);
-            let cleanLine = line.replace(/\[\[/g, '').replace(/\]\]/g, '');
-            
-            // Highlight bar
-            if (line.includes('[[')) {
-                let hP = Math.max(0, Math.min((bodyT - (i * 0.3)) / 0.8, 1));
-                ctx.fillStyle = "rgba(0,136,216,0.6)";
-                ctx.fillRect(margin - 5, y - 55, 600 * hP, 75);
-            }
-            
-            ctx.fillStyle = "white";
-            ctx.font = "700 54px 'PlusJakarta'";
-            ctx.fillText(cleanLine, margin, y);
-        });
+        // Kunci keberhasilan: Capturer mengambil frame dari canvas
+        capturer.capture(canvas);
+        
+        statusEl.textContent = `Rendering: ${Math.round((currentFrame/totalFrames)*100)}%`;
+        currentFrame++;
+        
+        // Gunakan requestAnimationFrame agar browser tetap hidup
+        requestAnimationFrame(renderLoop);
+    } else {
+        isRendering = false;
+        capturer.stop();
+        capturer.save(); // Ini akan memicu download otomatis
+        statusEl.textContent = "Status: Downloading...";
     }
 }
 
-// --- CONTROLS ---
-let isPlaying = false;
-let startTime = 0;
-
-function animate(now) {
-    if (!isPlaying) return;
-    if (!startTime) startTime = now;
-    
-    let elapsed = (now - startTime) / 1000;
-    drawFrame(elapsed);
-    
-    if (elapsed < 10) requestAnimationFrame(animate);
-    else {
-        isPlaying = false;
-        document.body.classList.remove('hide-ui');
-        startTime = 0;
-    }
-}
-
-document.getElementById('playBtn').onclick = () => {
-    isPlaying = true;
-    document.body.classList.add('hide-ui'); // Sembunyikan UI saat play
-    requestAnimationFrame(animate);
+document.getElementById('renderBtn').onclick = () => {
+    isRendering = true;
+    currentFrame = 0;
+    statusEl.textContent = "Status: Starting...";
+    capturer.start();
+    renderLoop();
 };
 
-document.getElementById('fullBtn').onclick = () => {
-    if (canvas.requestFullscreen) canvas.requestFullscreen();
-    else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
-};
-
-function toggleEditor() {
-    editor.classList.toggle('hidden');
-}
-
-// Klik canvas untuk memunculkan kembali UI
-canvas.onclick = () => {
-    document.body.classList.remove('hide-ui');
-    editor.classList.remove('hidden');
-};
-
-// Inisialisasi
-window.onload = () => drawFrame(0);
+// Initial draw
+drawFrame(0);
 </script>
 </body>
 </html>
