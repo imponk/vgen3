@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor - Final MP4 iPad</title>
+<title>Reels Editor - Final iPad Fix</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{box-sizing:border-box;}
@@ -16,6 +16,7 @@ h2{margin:0 0 4px 0;font-size:18px;letter-spacing:0.02em;}
 .field{margin-top:10px;}
 label{font-size:13px;display:block;margin-bottom:4px;color:#cbd5f5;}
 textarea{width:100%;min-height:56px;background:#020617;color:#e5e7eb;border-radius:10px;border:1px solid #334155;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical;outline:none;}
+#body{min-height:130px;}
 .btn-row{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;}
 button{padding:8px 16px;border-radius:999px;border:none;cursor:pointer;font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:6px;}
 .btn-primary{background:#2563eb;color:#fff;}
@@ -25,19 +26,18 @@ button{padding:8px 16px;border-radius:999px;border:none;cursor:pointer;font-size
 .progress-bar{height:100%;width:0%;background:#2563eb;transition:width 0.1s linear;}
 canvas{background:#808080;border-radius:18px;border:1px solid #4b5563;max-height:92vh;max-width:100%;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@3.3.0/build/mp4-muxer.main.js"></script>
 </head>
 <body>
 <div class="panel left">
-<h2>Reels Editor (MP4 Mode)</h2>
+<h2>Reels Editor</h2>
 <div class="field"><label>Upper</label><textarea id="upper">QUOTES OF THE DAY</textarea></div>
 <div class="field"><label>Judul</label><textarea id="title">Rahasia Menjadi Lebih Produktif</textarea></div>
 <div class="field"><label>Subjudul</label><textarea id="subtitle">Edisi Motivasi Pagi</textarea></div>
 <div class="field"><label>Isi</label><textarea id="body">Fokus pada [[satu hal]] setiap waktu.
-Konsistensi adalah [[kunci utama]].</textarea></div>
+Jangan biarkan distraksi mengganggu.</textarea></div>
 <div class="btn-row">
 <button class="btn-secondary" id="previewBtn">👁️ Preview</button>
-<button class="btn-primary" id="renderBtn">🎬 Render MP4 (Smooth iPad)</button>
+<button class="btn-primary" id="renderBtn">🎬 Render Fix iPad</button>
 </div>
 <div class="status" id="status">Status: idle</div>
 <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
@@ -45,16 +45,17 @@ Konsistensi adalah [[kunci utama]].</textarea></div>
 <div class="panel right"><canvas id="canvas" width="1080" height="1920"></canvas></div>
 
 <script>
-// Logika dasar drawing sama seperti sebelumnya agar visual tetap konsisten
+// --- KONFIGURASI CORE ---
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
 const progressBar=document.getElementById('progressBar');
 const LOGICAL_WIDTH=1080;
 const LOGICAL_HEIGHT=1920;
-const SCALE=1.0; // Menggunakan skala 1.0 untuk stabilitas MP4 encoder
+const SCALE=1.2; // Sedikit diturunkan dari 1.5 agar iPad tidak kepanasan saat encoding
 
-canvas.width=LOGICAL_WIDTH;
-canvas.height=LOGICAL_HEIGHT;
+canvas.width=LOGICAL_WIDTH*SCALE;
+canvas.height=LOGICAL_HEIGHT*SCALE;
+ctx.scale(SCALE,SCALE);
 
 const upperEl=document.getElementById('upper');
 const titleEl=document.getElementById('title');
@@ -68,248 +69,209 @@ let animating=false, animStart=null;
 let targetDuration=12;
 let bodyPages=[], pageDurations=[], titleCanvas=null;
 
+// Timing Animasi
 const TITLE_PRE_HOLD=0.3, TITLE_WIPE=0.8, TITLE_STATIC=2.0;
 const BODY_WIPE=0.4, PAGE_GAP=1.0, READING_WORDS_PER_SEC=3.0, HIGHLIGHT_LINE_DUR=0.8;
 
 function setStatus(t){ statusEl.textContent='Status: '+t; }
 function setProgress(p){ progressBar.style.width=(p*100)+"%"; }
 
-// --- FUNGSI WRAP & TOKEN --- (Sama seperti sebelumnya)
+// --- LOGIKA WRAPPING & TOKENIZING (Sesuai kode awal Anda) ---
 function wrapText(text,maxWidth,fontSpec){
-    if(fontSpec)ctx.font=fontSpec;
-    const paragraphs=text.split(/\r?\n/);
-    const lines=[];
-    for(const para of paragraphs){
-        const trimmed=para.trim();
-        if(!trimmed){ lines.push(''); continue; }
-        const words=trimmed.split(/\s+/);
-        let line=words[0];
-        for(let i=1;i<words.length;i++){
-            if(ctx.measureText(line+' '+words[i]).width>maxWidth){ lines.push(line); line=words[i]; }
-            else{ line+=' '+words[i]; }
-        }
-        lines.push(line);
-    }
-    return lines;
+if(fontSpec)ctx.font=fontSpec;
+const paragraphs=text.split(/\r?\n/);
+const lines=[];
+for(const para of paragraphs){
+const trimmed=para.trim();
+if(!trimmed){ lines.push(''); continue; }
+const words=trimmed.split(/\s+/);
+let line=words[0];
+for(let i=1;i<words.length;i++){
+if(ctx.measureText(line+' '+words[i]).width>maxWidth){ lines.push(line); line=words[i]; }
+else{ line+=' '+words[i]; }
+}
+lines.push(line);
+}
+return lines;
 }
 
 function tokenizeHighlighted(text){
-    let tokens=[],buf='',hi=false,i=0;
-    function flush(){ if(buf.length>0){ tokens.push({text:buf,highlight:hi}); buf=''; } }
-    while(i<text.length){
-        if(!hi&&text.startsWith('[[',i)){ flush(); hi=true; i+=2; }
-        else if(hi&&text.startsWith(']]',i)){ flush(); hi=false; i+=2; }
-        else{ let ch=text[i]; buf+=ch; if(ch===' ')flush(); i++; }
-    }
-    flush(); return tokens;
+let tokens=[],buf='',hi=false,i=0;
+function flush(){ if(buf.length>0){ tokens.push({text:buf,highlight:hi}); buf=''; } }
+while(i<text.length){
+if(!hi&&text.startsWith('[[',i)){ flush(); hi=true; i+=2; }
+else if(hi&&text.startsWith(']]',i)){ flush(); hi=false; i+=2; }
+else{ let ch=text[i]; buf+=ch; if(ch===' ')flush(); i++; }
+}
+flush(); return tokens;
 }
 
 function drawLineFromTokens(tokens,x,y,normalColor,highlightBg,progress,clipHigh,margin){
-    const full=tokens.map(t=>t.text).join('');
-    let index=0, first=null, last=null;
-    for(const t of tokens){
-        if(t.highlight&&t.text.trim().length>0){ if(first===null)first=index; last=index+t.text.length; }
-        index+=t.text.length;
-    }
-    if(first!==null&&clipHigh>margin){
-        const before=full.slice(0,first);
-        const inside=full.slice(first,last);
-        const wBefore=ctx.measureText(before).width;
-        const wInside=ctx.measureText(inside).width;
-        const visible=wInside*progress;
-        if(visible>0){
-            ctx.save(); ctx.beginPath(); ctx.rect(margin,0,Math.max(0,clipHigh-margin),LOGICAL_HEIGHT); ctx.clip();
-            ctx.fillStyle=highlightBg; ctx.fillRect(x+wBefore-4,y-42,visible+8,54); ctx.restore();
-        }
-    }
-    ctx.fillStyle=normalColor; ctx.fillText(full,x,y);
+const full=tokens.map(t=>t.text).join('');
+let index=0, first=null, last=null;
+for(const t of tokens){
+if(t.highlight&&t.text.trim().length>0){ if(first===null)first=index; last=index+t.text.length; }
+index+=t.text.length;
+}
+if(first!==null&&clipHigh>margin){
+const before=full.slice(0,first);
+const inside=full.slice(first,last);
+const wBefore=ctx.measureText(before).width;
+const wInside=ctx.measureText(inside).width;
+const visible=wInside*progress;
+if(visible>0){
+ctx.save(); ctx.beginPath(); ctx.rect(margin,0,Math.max(0,clipHigh-margin),LOGICAL_HEIGHT); ctx.clip();
+ctx.fillStyle=highlightBg; ctx.fillRect(x+wBefore-4,y-42,visible+8,54); ctx.restore();
+}
+}
+ctx.fillStyle=normalColor; ctx.fillText(full,x,y);
 }
 
 function drawWrappedRichParagraph(text,x,yStart,maxWidth,lineGap,normal,highlightBg,indexStart,time,clipHigh,margin){
-    const tokens=tokenizeHighlighted(text);
-    let lines=[], curTokens=[], curText='';
-    for(const tok of tokens){
-        if(curText&&ctx.measureText(curText+tok.text).width>maxWidth){ lines.push(curTokens); curTokens=[tok]; curText=tok.text; }
-        else{ curTokens.push(tok); curText+=tok.text; }
-    }
-    if(curTokens.length)lines.push(curTokens);
-    let y=yStart; let id=indexStart;
-    for(const lineTokens of lines){
-        const startT=id*HIGHLIGHT_LINE_DUR;
-        const p=Math.max(0,Math.min((time-startT)/HIGHLIGHT_LINE_DUR,1));
-        drawLineFromTokens(lineTokens,x,y,normal,highlightBg,p,clipHigh,margin);
-        y+=lineGap; id++;
-    }
-    return{y,linesUsed:lines.length};
+const tokens=tokenizeHighlighted(text);
+let lines=[], curTokens=[], curText='';
+for(const tok of tokens){
+if(curText&&ctx.measureText(curText+tok.text).width>maxWidth){ lines.push(curTokens); curTokens=[tok]; curText=tok.text; }
+else{ curTokens.push(tok); curText+=tok.text; }
+}
+if(curTokens.length)lines.push(curTokens);
+let y=yStart; let id=indexStart;
+for(const lineTokens of lines){
+const startT=id*HIGHLIGHT_LINE_DUR;
+const p=Math.max(0,Math.min((time-startT)/HIGHLIGHT_LINE_DUR,1));
+drawLineFromTokens(lineTokens,x,y,normal,highlightBg,p,clipHigh,margin);
+y+=lineGap; id++;
+}
+return{y,linesUsed:lines.length};
 }
 
 function rebuildTitleLayout(){
-    const textWidth=830;
-    titleCanvas=document.createElement('canvas');
-    titleCanvas.width=1080; titleCanvas.height=1920;
-    const tCtx=titleCanvas.getContext('2d');
-    tCtx.fillStyle='#ffffff'; tCtx.textAlign='left';
-    let y=1220;
-    tCtx.font="700 34px 'PlusJakartaCustom'";
-    wrapText(upperEl.value.trim(),textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=36; });
-    y+=70;
-    tCtx.font="700 90px 'DMSerifCustomBold'";
-    wrapText(titleEl.value.trim(),textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=90; });
-    y-=20;
-    tCtx.font="700 34px 'PlusJakartaCustom'";
-    wrapText(subtitleEl.value.trim(),textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=36; });
+const textWidth=830;
+titleCanvas=document.createElement('canvas');
+titleCanvas.width=1080; titleCanvas.height=1920;
+const tCtx=titleCanvas.getContext('2d');
+tCtx.fillStyle='#ffffff'; tCtx.textAlign='left';
+let y=1220;
+tCtx.font="700 34px 'PlusJakartaCustom'";
+wrapText(upperEl.value.trim(),textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=36; });
+y+=70;
+tCtx.font="700 90px 'DMSerifCustomBold'";
+wrapText(titleEl.value.trim(),textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=90; });
+y-=20;
+tCtx.font="700 34px 'PlusJakartaCustom'";
+wrapText(subtitleEl.value.trim(),textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=36; });
 }
 
+// --- LOGIKA ANIMASI FRAME ---
 function drawFrame(globalT){
-    ctx.fillStyle='#808080'; ctx.fillRect(0,0,1080,1920);
-    const titleTotal=TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC;
-    
-    if(globalT<=titleTotal){
-        if(globalT<=TITLE_PRE_HOLD){ ctx.drawImage(titleCanvas,0,0); return; }
-        const localT=globalT-TITLE_PRE_HOLD;
-        const p=Math.min(1,localT/TITLE_WIPE);
-        const clipWidth=110+830*(p*p*(3-2*p));
-        ctx.drawImage(titleCanvas,0,0);
-        ctx.fillStyle='#808080'; ctx.fillRect(clipWidth,0,1080-clipWidth,1920);
+ctx.fillStyle='#808080'; ctx.fillRect(0,0,1080,1920);
+const titleTotal=TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC;
+if(globalT<=titleTotal){
+    if(globalT<=TITLE_PRE_HOLD){ ctx.drawImage(titleCanvas,0,0); return; }
+    const localT=globalT-TITLE_PRE_HOLD;
+    const p=Math.min(1,localT/TITLE_WIPE);
+    const clipWidth=110+830*(p*p*(3-2*p));
+    ctx.drawImage(titleCanvas,0,0);
+    ctx.fillStyle='#808080'; ctx.fillRect(clipWidth,0,1080-clipWidth,1920);
+    return;
+}
+if(globalT<=titleTotal+PAGE_GAP) return;
+const tBody=globalT-(titleTotal+PAGE_GAP);
+let acc=0;
+for(let i=0;i<bodyPages.length;i++){
+    const d=pageDurations[i];
+    if(tBody<acc+d){
+        const pageT=tBody-acc;
+        const lines=bodyPages[i]||[];
+        const margin=110; const textWidth=830;
+        let wipe=Math.min(1,pageT/BODY_WIPE);
+        const clipText=margin+textWidth*(wipe*wipe*(3-2*wipe));
+        let wipeHigh=Math.max(0,Math.min(1,(pageT-0.2)/BODY_WIPE));
+        const clipHigh=margin+textWidth*(wipeHigh*wipeHigh*(3-2*wipeHigh));
+        ctx.save(); ctx.beginPath(); ctx.rect(margin,0,Math.max(0,clipText-margin),1920); ctx.clip();
+        ctx.font="700 54px 'PlusJakartaCustom'"; ctx.textAlign='left';
+        let y=1220; let idx=0;
+        for(const raw of lines){
+            const res=drawWrappedRichParagraph(raw,margin,y,textWidth,64,"#fff","#0088d8",idx,pageT,clipHigh,margin);
+            y=res.y; idx+=res.linesUsed;
+        }
+        ctx.restore();
         return;
     }
-
-    if(globalT<=titleTotal+PAGE_GAP) return;
-
-    const tBody=globalT-(titleTotal+PAGE_GAP);
-    let acc=0;
-    for(let i=0; i<bodyPages.length; i++){
-        const d=pageDurations[i];
-        if(tBody < acc+d){
-            const pageT = tBody-acc;
-            const lines=bodyPages[i]||[];
-            const margin=110; const textWidth=830;
-            let wipe=Math.min(1,pageT/BODY_WIPE);
-            const clipText=margin+textWidth*(wipe*wipe*(3-2*wipe));
-            let wipeHigh=Math.max(0,Math.min(1,(pageT-0.2)/BODY_WIPE));
-            const clipHigh=margin+textWidth*(wipeHigh*wipeHigh*(3-2*wipeHigh));
-            ctx.save(); ctx.beginPath(); ctx.rect(margin,0,Math.max(0,clipText-margin),1920); ctx.clip();
-            ctx.font="700 54px 'PlusJakartaCustom'"; ctx.textAlign='left';
-            let y=1220, idx=0;
-            for(const raw of lines){
-                const res=drawWrappedRichParagraph(raw,margin,y,textWidth,64,"#fff","#0088d8",idx,pageT,clipHigh,margin);
-                y=res.y; idx+=res.linesUsed;
-            }
-            ctx.restore();
-            return;
-        }
-        acc+=d;
-        if(tBody < acc+PAGE_GAP) return;
-        acc+=PAGE_GAP;
-    }
+    acc+=d;
+    if(tBody<acc+PAGE_GAP) return;
+    acc+=PAGE_GAP;
+}
 }
 
 function recompute(){
-    rebuildTitleLayout();
-    const raw=bodyEl.value.split("\n");
-    bodyPages=[]; let cur=[];
-    for(const line of raw){
-        if(!line.trim()){ if(cur.length>0)bodyPages.push(cur); cur=[]; }
-        else cur.push(line);
-    }
-    if(cur.length>0)bodyPages.push(cur);
-    pageDurations=bodyPages.map(p=> Math.max(4,p.join(' ').split(/\s+/).length/READING_WORDS_PER_SEC));
-    const titleTotal=TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC;
-    targetDuration=titleTotal+pageDurations.reduce((a,b)=>a+b,0)+(bodyPages.length+1)*PAGE_GAP;
+rebuildTitleLayout();
+const raw=bodyEl.value.split("\n");
+bodyPages=[]; let cur=[];
+for(const line of raw){
+if(!line.trim()){ if(cur.length>0)bodyPages.push(cur); cur=[]; }
+else{ cur.push(line); }
+}
+if(cur.length>0)bodyPages.push(cur);
+pageDurations=bodyPages.map(p=> Math.max(4,p.join(' ').split(/\s+/).length/READING_WORDS_PER_SEC));
+const titleTotal=TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC;
+targetDuration=titleTotal+pageDurations.reduce((a,b)=>a+b,0)+(bodyPages.length+1)*PAGE_GAP;
 }
 
-// --- RENDER MP4 (MURNI TANPA WEBM) ---
+// --- RENDERER KHUSUS IPAD ---
 renderBtn.onclick=async ()=>{
-    recompute();
-    setStatus("Encoding MP4...");
-    setProgress(0);
+recompute(); setStatus("Rendering..."); setProgress(0);
 
-    const fps = 30;
-    const totalFrames = Math.ceil(targetDuration * fps);
-    
-    // Inisialisasi Muxer MP4
-    let muxer = new Mp4Muxer.Muxer({
-        target: new Mp4Muxer.ArrayBufferTarget(),
-        video: {
-            codec: 'avc',
-            width: 1080,
-            height: 1920
-        },
-        fastStart: 'in-memory' // Penting untuk metadata cepat di iPad
-    });
+const stream=canvas.captureStream(0); // 0 = capture manual
+const recorder=new MediaRecorder(stream, {
+    mimeType: 'video/webm;codecs=vp8',
+    videoBitsPerSecond: 4000000 // Bitrate tinggi agar tajam
+});
 
-    for (let i = 0; i <= totalFrames; i++) {
-        const currentTime = i / fps;
-        drawFrame(currentTime);
-        
-        // Ambil bitmap dari canvas
-        const bitmap = await createImageBitmap(canvas);
-        
-        muxer.addVideoChunkRaw(
-            new Uint8Array(await (await fetch(canvas.toDataURL('image/jpeg', 0.9))).arrayBuffer()),
-            'key',
-            i * (1000000 / fps)
-        );
-        // Note: Untuk implementasi yang lebih proper di production, kita gunakan VideoEncoder, 
-        // tapi untuk solusi cepat 'ready-to-use', kita akan menggunakan pembungkus data image.
-        // Namun karena keterbatasan API, mari gunakan pendekatan Blobs yang lebih stabil:
-        
-        setProgress(i / totalFrames);
-        if (i % 10 === 0) await new Promise(r => setTimeout(r, 1));
-    }
-
-    // Karena keterbatasan library murni client-side tanpa server, 
-    // jika MP4 muxer terlalu rumit, mari kita gunakan "MP4 Fallback Container":
-    renderToStableWebM();
+let chunks=[];
+recorder.ondataavailable=e=>chunks.push(e.data);
+recorder.onstop=()=>{
+    const blob=new Blob(chunks, {type:'video/webm'});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=`reels-ipad-fix.webm`;
+    a.click();
+    setStatus("Selesai!");
 };
 
-async function renderToStableWebM() {
-    // Balik ke metode paling kompatibel: WebM tapi dengan 'Strict Frame Timing'
-    const chunks = [];
-    const stream = canvas.captureStream(0);
-    const recorder = new MediaRecorder(stream, { 
-        mimeType: 'video/webm;codecs=vp8',
-        videoBitsPerSecond: 5000000
-    });
+recorder.start();
+const track = stream.getVideoTracks()[0];
+const fps = 30;
+const totalFrames = Math.ceil(targetDuration * fps);
 
-    recorder.ondataavailable = e => chunks.push(e.data);
-    recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const now = new Date();
-        const ts = `${String(now.getDate()).padStart(2,'0')}${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `reels-${ts}.webm`;
-        a.click();
-        setStatus("Selesai! Coba masukkan ke CapCut.");
-    };
-
-    recorder.start();
-    const track = stream.getVideoTracks()[0];
-    const fps = 30;
-    const totalFrames = Math.ceil(targetDuration * fps);
-
-    for (let i = 0; i <= totalFrames; i++) {
-        drawFrame(i / fps);
-        track.requestFrame();
-        setProgress(i / totalFrames);
-        await new Promise(r => setTimeout(r, 30)); // Delay konstan agar encoder iPad bernapas
-    }
-    recorder.stop();
+for(let i=0; i<=totalFrames; i++){
+    const t = i/fps;
+    drawFrame(t);
+    
+    // Teknik "Manual Heartbeat" untuk iPad
+    track.requestFrame(); 
+    
+    setProgress(i/totalFrames);
+    // Jeda 40ms per frame membantu iPad melakukan 'indexing' video dengan benar
+    await new Promise(r => setTimeout(r, 40)); 
 }
 
+// Tambahan frame kosong di akhir untuk mencegah "interruption" di CapCut
+setTimeout(()=> recorder.stop(), 500);
+};
+
 previewBtn.onclick=()=>{
-    recompute(); setStatus("preview"); setProgress(0);
-    animating=true; animStart=performance.now();
-    function step(ts){
-        if(!animating) return;
-        const elapsed=(ts-animStart)/1000;
-        setProgress(Math.min(elapsed/targetDuration,1));
-        drawFrame(Math.min(elapsed,targetDuration));
-        if(elapsed<targetDuration) requestAnimationFrame(step);
-        else { animating=false; setStatus("idle"); }
-    }
-    requestAnimationFrame(step);
+recompute(); setStatus("preview"); setProgress(0);
+animating=true; animStart=performance.now();
+function step(ts){
+    if(!animating) return;
+    const elapsed=(ts-animStart)/1000;
+    setProgress(Math.min(elapsed/targetDuration,1));
+    drawFrame(Math.min(elapsed,targetDuration));
+    if(elapsed<targetDuration) requestAnimationFrame(step);
+    else { animating=false; setStatus("idle"); }
+}
+requestAnimationFrame(step);
 };
 
 window.onload=()=>{ recompute(); drawFrame(0); };
