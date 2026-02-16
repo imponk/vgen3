@@ -2,96 +2,104 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Test Render Kosongan</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reels Editor - iPad Ultra Stable</title>
 <style>
-    body { background: #111; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-    canvas { background: #333; border: 2px solid #555; max-width: 90vw; max-height: 70vh; }
-    .controls { margin-top: 20px; display: flex; gap: 10px; }
-    button { padding: 15px 25px; font-size: 16px; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; }
-    #renderBtn { background: #2563eb; color: white; }
-    #status { margin-top: 10px; color: #aaa; }
+    body { background: #020617; color: #f8fafc; font-family: -apple-system, system-ui; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+    canvas { background: #808080; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); max-height: 75vh; max-width: 100%; }
+    .panel { background: #0f172a; padding: 20px; border-radius: 16px; border: 1px solid #1e293b; width: 100%; max-width: 400px; margin-bottom: 20px; }
+    .btn-render { background: #2563eb; color: white; width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
+    .progress-bg { width: 100%; height: 10px; background: #1e293b; border-radius: 5px; margin-top: 15px; overflow: hidden; }
+    #progressFill { width: 0%; height: 100%; background: #3b82f6; transition: width 0.1s; }
+    #status { font-size: 13px; color: #94a3b8; margin-top: 8px; text-align: center; }
 </style>
 </head>
 <body>
 
-    <h2>Test Movement iPad</h2>
-    <canvas id="canvas" width="1080" height="1920"></canvas>
-    
-    <div class="controls">
-        <button id="renderBtn">Mulai Render Tes</button>
-    </div>
-    <div id="status">Status: Standby</div>
+<div class="panel">
+    <h3 style="margin-top:0">Final iPad Sync</h3>
+    <button id="renderBtn" class="btn-render">Render Video Mulus</button>
+    <div class="progress-bg"><div id="progressFill"></div></div>
+    <div id="status">Status: Siap</div>
+</div>
+
+<canvas id="canvas" width="1080" height="1920"></canvas>
 
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+const progressFill = document.getElementById('progressFill');
 const statusEl = document.getElementById('status');
-const renderBtn = document.getElementById('renderBtn');
-
-const duration = 5; // Cukup 5 detik saja untuk tes
-const fps = 30;
 
 function drawFrame(t) {
-    // Bersihkan layar
-    ctx.fillStyle = '#000000';
+    // Background
+    ctx.fillStyle = '#808080';
     ctx.fillRect(0, 0, 1080, 1920);
 
-    // Gambar Kotak Pengetesan Gerakan
-    // Bergerak dari kiri (100) ke kanan (900)
-    let x = 100 + (880 * (t / duration));
-    
+    // Animasi: Kotak Bergerak (Uji Kelancaran)
+    let y = 500 + (Math.sin(t * 2) * 200);
     ctx.fillStyle = '#2563eb';
-    ctx.fillRect(x, 900, 150, 150);
+    ctx.beginPath();
+    ctx.roundRect(100, y, 880, 150, 20);
+    ctx.fill();
 
-    // Tambah teks timer sederhana
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 50px sans-serif';
-    ctx.fillText("Detik: " + t.toFixed(2), 100, 100);
-    ctx.fillText("Uji Kelancaran Gerak", 100, 170);
+    // Teks Indikator Detik
+    ctx.fillStyle = "white";
+    ctx.font = "bold 80px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(t.toFixed(2) + "s", 540, 1000);
 }
 
-renderBtn.onclick = async () => {
-    statusEl.textContent = "Status: Sedang Render...";
-    renderBtn.disabled = true;
+document.getElementById('renderBtn').onclick = async () => {
+    statusEl.textContent = "Mengunci Frame...";
+    document.getElementById('renderBtn').disabled = true;
 
-    // CaptureStream 0 (Manual) adalah yang paling aman untuk iPad
-    const stream = canvas.captureStream(0);
+    // KUNCI UTAMA: Kita pakai captureStream(0) - Manual Tick
+    const stream = canvas.captureStream(0); 
     const recorder = new MediaRecorder(stream, {
         mimeType: 'video/webm;codecs=vp8',
-        videoBitsPerSecond: 2500000
+        videoBitsPerSecond: 5000000 // 5Mbps agar tetap tajam
     });
 
     let chunks = [];
     recorder.ondataavailable = e => chunks.push(e.data);
-    recorder.onstop = () => {
+    recorder.onstop = async () => {
         const blob = new Blob(chunks, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        a.download = "tes-gerak-ipad.webm";
+        a.download = `video-mulus-${Date.now()}.webm`;
         a.click();
-        
-        statusEl.textContent = "Status: Selesai! Cek di Galeri/CapCut.";
-        renderBtn.disabled = false;
+        statusEl.textContent = "Berhasil! Masukkan ke CapCut.";
+        document.getElementById('renderBtn').disabled = false;
     };
 
     recorder.start();
     const track = stream.getVideoTracks()[0];
+    
+    const fps = 30;
+    const duration = 5; // Kita coba 5 detik dulu
     const totalFrames = duration * fps;
 
     for (let i = 0; i <= totalFrames; i++) {
-        drawFrame(i / fps);
-        track.requestFrame(); // Paksa rekam frame ini
+        const t = i / fps;
+        drawFrame(t);
         
-        // Jeda 40ms per frame untuk memberi napas pada prosesor iPad
-        await new Promise(r => setTimeout(r, 40));
+        // Memaksa recorder mengambil frame SEKARANG
+        // Ini sinkron, tidak akan ada frame yang terlewat
+        track.requestFrame();
+        
+        // Progress UI
+        progressFill.style.width = (i / totalFrames * 100) + "%";
+        
+        // JEDA STRATEGIS: Memberi waktu iPad untuk 'bernafas' 
+        // agar tidak memutus aliran data encoding
+        await new Promise(r => setTimeout(r, 50)); 
     }
 
-    setTimeout(() => recorder.stop(), 500);
+    // Jeda 1 detik sebelum stop agar metadata video ter-generate dengan benar
+    setTimeout(() => recorder.stop(), 1000);
 };
 
-// Tampilan awal
 drawFrame(0);
 </script>
 </body>
