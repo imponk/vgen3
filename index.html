@@ -2,256 +2,97 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor - Perfect iPad Sync</title>
+<title>Test Render Kosongan</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-*{box-sizing:border-box;}
-@font-face{font-family:'DMSerifCustomBold';src:url('./fonts/DMSerifDisplay-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:swap;}
-@font-face{font-family:'PlusJakartaCustom';src:url('./fonts/PlusJakartaSans-Bold.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap;}
-body{margin:0;padding:12px;display:flex;gap:16px;background:radial-gradient(circle at top,#020617 0%,#020617 40%,#020617 100%);color:#e5e7eb;font-family:'PlusJakartaCustom',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
-.panel{background:#020617;padding:16px 14px;border-radius:14px;border:1px solid #1f2937;box-shadow:0 16px 40px rgba(0,0,0,0.65);}
-.left{width:380px;max-width:100%;flex-shrink:0;}
-.right{flex:1;display:flex;justify-content:center;align-items:center;min-width:0;}
-h2{margin:0 0 4px 0;font-size:18px;letter-spacing:0.02em;}
-.field{margin-top:10px;}
-label{font-size:13px;display:block;margin-bottom:4px;color:#cbd5f5;}
-textarea{width:100%;min-height:56px;background:#020617;color:#e5e7eb;border-radius:10px;border:1px solid #334155;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical;outline:none;}
-.btn-row{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;}
-button{padding:8px 16px;border-radius:999px;border:none;cursor:pointer;font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:6px;}
-.btn-primary{background:#2563eb;color:#fff;}
-.btn-secondary{background:#111827;color:#e5e7eb;}
-.status{margin-top:8px;font-size:12px;color:#9ca3af;}
-.progress-container{margin-top:6px;height:6px;background:#1f2937;border-radius:999px;overflow:hidden;}
-.progress-bar{height:100%;width:0%;background:#2563eb;transition:width 0.1s linear;}
-canvas{background:#808080;border-radius:18px;border:1px solid #4b5563;max-height:92vh;max-width:100%;}
+    body { background: #111; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+    canvas { background: #333; border: 2px solid #555; max-width: 90vw; max-height: 70vh; }
+    .controls { margin-top: 20px; display: flex; gap: 10px; }
+    button { padding: 15px 25px; font-size: 16px; font-weight: bold; border-radius: 10px; border: none; cursor: pointer; }
+    #renderBtn { background: #2563eb; color: white; }
+    #status { margin-top: 10px; color: #aaa; }
 </style>
 </head>
 <body>
-<div class="panel left">
-<h2>Reels Editor (Frame Sync)</h2>
-<div class="field"><label>Upper</label><textarea id="upper">QUOTES OF THE DAY</textarea></div>
-<div class="field"><label>Judul</label><textarea id="title">Rahasia Menjadi Lebih Produktif</textarea></div>
-<div class="field"><label>Subjudul</label><textarea id="subtitle">Edisi Motivasi Pagi</textarea></div>
-<div class="field"><label>Isi</label><textarea id="body">Fokus pada [[satu hal]] setiap waktu.&#10;Konsistensi adalah [[kunci utama]].</textarea></div>
-<div class="btn-row">
-<button class="btn-secondary" id="previewBtn">👁️ Preview</button>
-<button class="btn-primary" id="renderBtn">🎬 Render Fix iPad</button>
-</div>
-<div class="status" id="status">Status: idle</div>
-<div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
-</div>
-<div class="panel right"><canvas id="canvas" width="1080" height="1920"></canvas></div>
+
+    <h2>Test Movement iPad</h2>
+    <canvas id="canvas" width="1080" height="1920"></canvas>
+    
+    <div class="controls">
+        <button id="renderBtn">Mulai Render Tes</button>
+    </div>
+    <div id="status">Status: Standby</div>
 
 <script>
-// --- LOGIKA ASLI ANDA (STRICTLY PRESERVED) ---
-const canvas=document.getElementById('canvas');
-const ctx=canvas.getContext('2d');
-const progressBar=document.getElementById('progressBar');
-const statusEl=document.getElementById('status');
-const LOGICAL_WIDTH=1080;
-const LOGICAL_HEIGHT=1920;
-const SCALE=1.3; // Skala aman untuk RAM iPad
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
+const renderBtn = document.getElementById('renderBtn');
 
-canvas.width=LOGICAL_WIDTH*SCALE;
-canvas.height=LOGICAL_HEIGHT*SCALE;
-ctx.scale(SCALE,SCALE);
+const duration = 5; // Cukup 5 detik saja untuk tes
+const fps = 30;
 
-let animating=false, animStart=null, targetDuration=12;
-let bodyPages=[], pageDurations=[], titleCanvas=null;
+function drawFrame(t) {
+    // Bersihkan layar
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, 1080, 1920);
 
-const TITLE_PRE_HOLD=0.3, TITLE_WIPE=0.8, TITLE_STATIC=2.0;
-const BODY_WIPE=0.4, PAGE_GAP=1.0, READING_WORDS_PER_SEC=3.0, HIGHLIGHT_LINE_DUR=0.8;
-
-function setStatus(t){ statusEl.textContent='Status: '+t; }
-function setProgress(p){ progressBar.style.width=(p*100)+"%"; }
-
-function wrapText(text,maxWidth,fontSpec){
-    if(fontSpec)ctx.font=fontSpec;
-    const paragraphs=text.split(/\r?\n/);
-    const lines=[];
-    for(const para of paragraphs){
-        const words=para.trim().split(/\s+/);
-        if(!words[0]){ lines.push(''); continue; }
-        let line=words[0];
-        for(let i=1;i<words.length;i++){
-            if(ctx.measureText(line+' '+words[i]).width>maxWidth){ lines.push(line); line=words[i]; }
-            else line+=' '+words[i];
-        }
-        lines.push(line);
-    }
-    return lines;
-}
-
-function tokenizeHighlighted(text){
-    let tokens=[],buf='',hi=false,i=0;
-    while(i<text.length){
-        if(!hi&&text.startsWith('[[',i)){ if(buf)tokens.push({text:buf,highlight:false}); buf=''; hi=true; i+=2; }
-        else if(hi&&text.startsWith(']]',i)){ if(buf)tokens.push({text:buf,highlight:true}); buf=''; hi=false; i+=2; }
-        else{ buf+=text[i]; i++; }
-    }
-    if(buf)tokens.push({text:buf,highlight:hi});
-    return tokens;
-}
-
-function drawLineFromTokens(tokens,x,y,normalColor,highlightBg,progress,clipHigh,margin){
-    const full=tokens.map(t=>t.text).join('');
-    let index=0, first=null, last=null;
-    for(const t of tokens){
-        if(t.highlight&&t.text.trim().length>0){ if(first===null)first=index; last=index+t.text.length; }
-        index+=t.text.length;
-    }
-    if(first!==null&&clipHigh>margin){
-        const before=full.slice(0,first);
-        const inside=full.slice(first,last);
-        const wBefore=ctx.measureText(before).width;
-        const wInside=ctx.measureText(inside).width;
-        const visible=wInside*progress;
-        if(visible>0){
-            ctx.save(); ctx.beginPath(); ctx.rect(margin,0,Math.max(0,clipHigh-margin),LOGICAL_HEIGHT); ctx.clip();
-            ctx.fillStyle=highlightBg; ctx.fillRect(x+wBefore-4,y-42,visible+8,54); ctx.restore();
-        }
-    }
-    ctx.fillStyle=normalColor; ctx.fillText(full,x,y);
-}
-
-function drawWrappedRichParagraph(text,x,yStart,maxWidth,lineGap,normal,highlightBg,indexStart,time,clipHigh,margin){
-    const tokens=tokenizeHighlighted(text);
-    let lines=[], curTokens=[], curText='';
-    for(const tok of tokens){
-        if(curText&&ctx.measureText(curText+tok.text).width>maxWidth){ lines.push(curTokens); curTokens=[tok]; curText=tok.text; }
-        else{ curTokens.push(tok); curText+=tok.text; }
-    }
-    if(curTokens.length)lines.push(curTokens);
-    let y=yStart, id=indexStart;
-    for(const lineTokens of lines){
-        const startT=id*HIGHLIGHT_LINE_DUR;
-        const p=Math.max(0,Math.min((time-startT)/HIGHLIGHT_LINE_DUR,1));
-        drawLineFromTokens(lineTokens,x,y,normal,highlightBg,p,clipHigh,margin);
-        y+=lineGap; id++;
-    }
-    return{y,linesUsed:lines.length};
-}
-
-function rebuildTitleLayout(){
-    const textWidth=830;
-    titleCanvas=document.createElement('canvas');
-    titleCanvas.width=1080; titleCanvas.height=1920;
-    const tCtx=titleCanvas.getContext('2d');
-    tCtx.fillStyle='#ffffff'; tCtx.textAlign='left';
-    let y=1220;
-    tCtx.font="700 34px 'PlusJakartaCustom'";
-    wrapText(document.getElementById('upper').value,textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=36; });
-    y+=70;
-    tCtx.font="700 90px 'DMSerifCustomBold'";
-    wrapText(document.getElementById('title').value,textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=90; });
-    y-=20;
-    tCtx.font="700 34px 'PlusJakartaCustom'";
-    wrapText(document.getElementById('subtitle').value,textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=36; });
-}
-
-function drawFrame(globalT){
-    ctx.fillStyle='#808080'; ctx.fillRect(0,0,1080,1920);
-    const titleTotal=TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC;
-    if(globalT<=titleTotal){
-        if(globalT<=TITLE_PRE_HOLD){ ctx.drawImage(titleCanvas,0,0); return; }
-        const p=Math.min(1,(globalT-TITLE_PRE_HOLD)/TITLE_WIPE);
-        const clipWidth=110+830*(p*p*(3-2*p));
-        ctx.drawImage(titleCanvas,0,0);
-        ctx.fillStyle='#808080'; ctx.fillRect(clipWidth,0,1080-clipWidth,1920);
-        return;
-    }
-    if(globalT<=titleTotal+PAGE_GAP) return;
-    const tBody=globalT-(titleTotal+PAGE_GAP);
-    let acc=0;
-    for(let i=0;i<bodyPages.length;i++){
-        const d=pageDurations[i];
-        if(tBody<acc+d){
-            const pageT=tBody-acc;
-            const margin=110, textWidth=830;
-            let wipe=Math.min(1,pageT/BODY_WIPE);
-            const clipText=margin+textWidth*(wipe*wipe*(3-2*wipe));
-            let wipeHigh=Math.max(0,Math.min(1,(pageT-0.2)/BODY_WIPE));
-            const clipHigh=margin+textWidth*(wipeHigh*wipeHigh*(3-2*wipeHigh));
-            ctx.save(); ctx.beginPath(); ctx.rect(margin,0,Math.max(0,clipText-margin),1920); ctx.clip();
-            ctx.font="700 54px 'PlusJakartaCustom'"; ctx.textAlign='left';
-            let y=1220, idx=0;
-            for(const raw of bodyPages[i]){
-                const res=drawWrappedRichParagraph(raw,margin,y,textWidth,64,"#fff","#0088d8",idx,pageT,clipHigh,margin);
-                y=res.y; idx+=res.linesUsed;
-            }
-            ctx.restore(); return;
-        }
-        acc+=d+PAGE_GAP;
-    }
-}
-
-function recompute(){
-    rebuildTitleLayout();
-    const raw=document.getElementById('body').value.split("\n");
-    bodyPages=[]; let cur=[];
-    for(const l of raw){ if(!l.trim()){ if(cur.length)bodyPages.push(cur); cur=[]; } else cur.push(l); }
-    if(cur.length)bodyPages.push(cur);
-    pageDurations=bodyPages.map(p=> Math.max(4,p.join(' ').split(/\s+/).length/READING_WORDS_PER_SEC));
-    targetDuration=TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC+(bodyPages.length+1)*PAGE_GAP+pageDurations.reduce((a,b)=>a+b,0);
-}
-
-// --- RENDERER ANTI-STUTTER (STRICT FRAME-BY-FRAME) ---
-document.getElementById('renderBtn').onclick=async ()=>{
-    recompute(); setStatus("Rendering..."); setProgress(0);
+    // Gambar Kotak Pengetesan Gerakan
+    // Bergerak dari kiri (100) ke kanan (900)
+    let x = 100 + (880 * (t / duration));
     
-    // Gunakan captureStream(0) untuk kontrol manual per frame
-    const stream=canvas.captureStream(0);
-    const track=stream.getVideoTracks()[0];
-    const recorder=new MediaRecorder(stream,{
-        mimeType:'video/webm;codecs=vp8',
-        videoBitsPerSecond:8000000 
+    ctx.fillStyle = '#2563eb';
+    ctx.fillRect(x, 900, 150, 150);
+
+    // Tambah teks timer sederhana
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 50px sans-serif';
+    ctx.fillText("Detik: " + t.toFixed(2), 100, 100);
+    ctx.fillText("Uji Kelancaran Gerak", 100, 170);
+}
+
+renderBtn.onclick = async () => {
+    statusEl.textContent = "Status: Sedang Render...";
+    renderBtn.disabled = true;
+
+    // CaptureStream 0 (Manual) adalah yang paling aman untuk iPad
+    const stream = canvas.captureStream(0);
+    const recorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp8',
+        videoBitsPerSecond: 2500000
     });
 
-    let chunks=[];
-    recorder.ondataavailable=e=>chunks.push(e.data);
-    recorder.onstop=()=>{
-        const blob=new Blob(chunks,{type:'video/webm'});
-        const a=document.createElement("a");
-        a.href=URL.createObjectURL(blob);
-        a.download=`reels-perfect-${Date.now()}.webm`;
+    let chunks = [];
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "tes-gerak-ipad.webm";
         a.click();
-        setStatus("Selesai!");
+        
+        statusEl.textContent = "Status: Selesai! Cek di Galeri/CapCut.";
+        renderBtn.disabled = false;
     };
 
     recorder.start();
-    const fps=30;
-    const totalFrames=Math.ceil(targetDuration*fps);
+    const track = stream.getVideoTracks()[0];
+    const totalFrames = duration * fps;
 
-    for(let i=0; i<=totalFrames; i++){
-        const t=i/fps; // WAKTU DIKUNCI KE INDEKS FRAME
-        drawFrame(t);
+    for (let i = 0; i <= totalFrames; i++) {
+        drawFrame(i / fps);
+        track.requestFrame(); // Paksa rekam frame ini
         
-        // Paksa recorder mengambil frame ini sebelum lanjut ke frame berikutnya
-        track.requestFrame();
-        
-        setProgress(i/totalFrames);
-        // JEDA PENTING (60ms): Memberi waktu hardware iPad untuk encoding tanpa drop frame
-        await new Promise(r=>setTimeout(r,60));
+        // Jeda 40ms per frame untuk memberi napas pada prosesor iPad
+        await new Promise(r => setTimeout(r, 40));
     }
 
-    // Tambahkan buffer kosong di akhir agar video tidak terpotong sistem iPad
-    setTimeout(()=>recorder.stop(),1000);
+    setTimeout(() => recorder.stop(), 500);
 };
 
-document.getElementById('previewBtn').onclick=()=>{
-    recompute(); setStatus("Preview"); animating=true; animStart=performance.now();
-    function step(ts){
-        if(!animating) return;
-        const elapsed=(ts-animStart)/1000;
-        drawFrame(Math.min(elapsed,targetDuration));
-        setProgress(Math.min(elapsed/targetDuration,1));
-        if(elapsed<targetDuration) requestAnimationFrame(step);
-        else{ animating=false; setStatus("idle"); }
-    }
-    requestAnimationFrame(step);
-};
-
-window.onload=()=>{ recompute(); drawFrame(0); };
+// Tampilan awal
+drawFrame(0);
 </script>
 </body>
 </html>
