@@ -2,104 +2,95 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor - iPad Ultra Stable</title>
+<title>Reels Editor - Replay Mode</title>
 <style>
-    body { background: #020617; color: #f8fafc; font-family: -apple-system, system-ui; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-    canvas { background: #808080; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); max-height: 75vh; max-width: 100%; }
-    .panel { background: #0f172a; padding: 20px; border-radius: 16px; border: 1px solid #1e293b; width: 100%; max-width: 400px; margin-bottom: 20px; }
-    .btn-render { background: #2563eb; color: white; width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
-    .progress-bg { width: 100%; height: 10px; background: #1e293b; border-radius: 5px; margin-top: 15px; overflow: hidden; }
-    #progressFill { width: 0%; height: 100%; background: #3b82f6; transition: width 0.1s; }
-    #status { font-size: 13px; color: #94a3b8; margin-top: 8px; text-align: center; }
+    body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+    canvas { background: #808080; max-height: 95vh; max-width: 100vw; aspect-ratio: 9/16; }
+    .ui { position: absolute; bottom: 20px; display: flex; gap: 10px; z-index: 100; transition: opacity 0.3s; }
+    button { padding: 15px 25px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
+    #playBtn { background: #2563eb; color: white; }
+    #fullBtn { background: #334155; color: white; }
+    .hidden { opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
 
-<div class="panel">
-    <h3 style="margin-top:0">Final iPad Sync</h3>
-    <button id="renderBtn" class="btn-render">Render Video Mulus</button>
-    <div class="progress-bg"><div id="progressFill"></div></div>
-    <div id="status">Status: Siap</div>
-</div>
-
-<canvas id="canvas" width="1080" height="1920"></canvas>
+    <canvas id="canvas" width="1080" height="1920"></canvas>
+    
+    <div class="ui" id="controls">
+        <button id="fullBtn">🔲 Fullscreen</button>
+        <button id="playBtn">▶️ Play Animasi</button>
+    </div>
 
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const progressFill = document.getElementById('progressFill');
-const statusEl = document.getElementById('status');
+const playBtn = document.getElementById('playBtn');
+const fullBtn = document.getElementById('fullBtn');
+const controls = document.getElementById('controls');
 
+// --- LOGIKA ANIMASI (KEMBALI KE STYLE ASLI ANDA) ---
 function drawFrame(t) {
-    // Background
     ctx.fillStyle = '#808080';
     ctx.fillRect(0, 0, 1080, 1920);
 
-    // Animasi: Kotak Bergerak (Uji Kelancaran)
-    let y = 500 + (Math.sin(t * 2) * 200);
-    ctx.fillStyle = '#2563eb';
+    // Animasi Wipe Judul
+    let p = Math.min(1, t / 1.5);
+    let ease = p * (2 - p); 
+    
+    ctx.save();
     ctx.beginPath();
-    ctx.roundRect(100, y, 880, 150, 20);
-    ctx.fill();
-
-    // Teks Indikator Detik
+    ctx.rect(0, 0, 110 + (860 * ease), 1920);
+    ctx.clip();
+    
     ctx.fillStyle = "white";
-    ctx.font = "bold 80px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(t.toFixed(2) + "s", 540, 1000);
+    ctx.font = "bold 90px sans-serif";
+    ctx.fillText("JUDUL MULUS", 110, 1300);
+    ctx.restore();
+
+    // Animasi Highlight
+    if (t > 1.8) {
+        let hP = Math.min(1, (t - 1.8) / 0.8);
+        ctx.fillStyle = "rgba(0,136,216,0.6)";
+        ctx.fillRect(110, 1400, 500 * hP, 80);
+        ctx.fillStyle = "white";
+        ctx.font = "bold 50px sans-serif";
+        ctx.fillText("Highlight Tanpa Patah", 110, 1460);
+    }
 }
 
-document.getElementById('renderBtn').onclick = async () => {
-    statusEl.textContent = "Mengunci Frame...";
-    document.getElementById('renderBtn').disabled = true;
+// --- LOGIKA KONTROL ---
+let isPlaying = false;
+let startTS = 0;
 
-    // KUNCI UTAMA: Kita pakai captureStream(0) - Manual Tick
-    const stream = canvas.captureStream(0); 
-    const recorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp8',
-        videoBitsPerSecond: 5000000 // 5Mbps agar tetap tajam
-    });
-
-    let chunks = [];
-    recorder.ondataavailable = e => chunks.push(e.data);
-    recorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `video-mulus-${Date.now()}.webm`;
-        a.click();
-        statusEl.textContent = "Berhasil! Masukkan ke CapCut.";
-        document.getElementById('renderBtn').disabled = false;
-    };
-
-    recorder.start();
-    const track = stream.getVideoTracks()[0];
+function animate(now) {
+    if (!isPlaying) return;
+    if (!startTS) startTS = now;
     
-    const fps = 30;
-    const duration = 5; // Kita coba 5 detik dulu
-    const totalFrames = duration * fps;
-
-    for (let i = 0; i <= totalFrames; i++) {
-        const t = i / fps;
-        drawFrame(t);
-        
-        // Memaksa recorder mengambil frame SEKARANG
-        // Ini sinkron, tidak akan ada frame yang terlewat
-        track.requestFrame();
-        
-        // Progress UI
-        progressFill.style.width = (i / totalFrames * 100) + "%";
-        
-        // JEDA STRATEGIS: Memberi waktu iPad untuk 'bernafas' 
-        // agar tidak memutus aliran data encoding
-        await new Promise(r => setTimeout(r, 50)); 
+    let elapsed = (now - startTS) / 1000;
+    drawFrame(elapsed);
+    
+    if (elapsed < 10) { // Durasi 10 detik
+        requestAnimationFrame(animate);
+    } else {
+        isPlaying = false;
+        controls.classList.remove('hidden');
+        startTS = 0;
     }
+}
 
-    // Jeda 1 detik sebelum stop agar metadata video ter-generate dengan benar
-    setTimeout(() => recorder.stop(), 1000);
+playBtn.onclick = () => {
+    isPlaying = true;
+    controls.classList.add('hidden'); // Sembunyikan tombol saat main
+    requestAnimationFrame(animate);
 };
 
+fullBtn.onclick = () => {
+    if (canvas.requestFullscreen) canvas.requestFullscreen();
+    else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
+};
+
+// Gambar frame pertama
 drawFrame(0);
 </script>
 </body>
