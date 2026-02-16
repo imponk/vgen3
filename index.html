@@ -2,202 +2,148 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor - Frame Perfect Fix</title>
+<title>Reels Editor - Final iPad Stable</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{box-sizing:border-box;}
 @font-face{font-family:'DMSerifCustomBold';src:url('./fonts/DMSerifDisplay-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:swap;}
 @font-face{font-family:'PlusJakartaCustom';src:url('./fonts/PlusJakartaSans-Bold.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap;}
-body{margin:0;padding:12px;display:flex;gap:16px;background:radial-gradient(circle at top,#020617 0%,#020617 40%,#020617 100%);color:#e5e7eb;font-family:'PlusJakartaCustom',sans-serif;}
-.panel{background:#020617;padding:16px 14px;border-radius:14px;border:1px solid #1f2937;box-shadow:0 16px 40px rgba(0,0,0,0.65);}
+body{margin:0;padding:12px;display:flex;gap:16px;background:#020617;color:#e5e7eb;font-family:'PlusJakartaCustom',sans-serif;}
+.panel{background:#020617;padding:16px 14px;border-radius:14px;border:1px solid #1f2937;}
 .left{width:380px;flex-shrink:0;}
 .right{flex:1;display:flex;justify-content:center;align-items:center;}
 h2{margin:0 0 4px 0;font-size:18px;}
-.field{margin-top:10px;}
-label{font-size:13px;display:block;margin-bottom:4px;color:#cbd5f5;}
-textarea{width:100%;min-height:56px;background:#020617;color:#e5e7eb;border-radius:10px;border:1px solid #334155;padding:9px;font-size:14px;outline:none;}
-.btn-row{margin-top:12px;display:flex;gap:8px;}
-button{padding:10px 16px;border-radius:999px;border:none;cursor:pointer;font-weight:500;}
+textarea{width:100%;min-height:56px;background:#0f172a;color:#fff;border-radius:10px;border:1px solid #334155;padding:10px;margin-bottom:10px;font-size:14px;}
+.btn-row{display:flex;gap:8px;margin-top:10px;}
+button{padding:10px 18px;border-radius:20px;border:none;cursor:pointer;font-weight:600;}
 .btn-primary{background:#2563eb;color:#fff;}
-.btn-secondary{background:#111827;color:#e5e7eb;}
-.status{margin-top:8px;font-size:12px;color:#9ca3af;}
-.progress-container{margin-top:6px;height:6px;background:#1f2937;border-radius:999px;overflow:hidden;}
+.btn-secondary{background:#334155;color:#fff;}
+.progress-container{margin-top:10px;height:6px;background:#1e293b;border-radius:3px;overflow:hidden;}
 .progress-bar{height:100%;width:0%;background:#2563eb;}
-canvas{background:#808080;border-radius:18px;border:1px solid #4b5563;max-height:85vh;max-width:100%;}
+canvas{background:#808080;border-radius:18px;max-height:85vh;max-width:100%;}
 </style>
-<script src="https://cdn.jsdelivr.net/gh/antimatter15/whammy@master/whammy.js"></script>
 </head>
 <body>
 <div class="panel left">
-<h2>Reels Editor</h2>
-<div class="field"><label>Upper</label><textarea id="upper">QUOTES OF THE DAY</textarea></div>
-<div class="field"><label>Judul</label><textarea id="title">Rahasia Menjadi Lebih Produktif</textarea></div>
-<div class="field"><label>Subjudul</label><textarea id="subtitle">Edisi Motivasi Pagi</textarea></div>
-<div class="field"><label>Isi</label><textarea id="body">Fokus pada [[satu hal]] setiap waktu.&#10;Konsistensi adalah [[kunci utama]].</textarea></div>
-<div class="btn-row">
-<button class="btn-secondary" id="previewBtn">👁️ Preview</button>
-<button class="btn-primary" id="renderBtn">🎬 Render (Stable Motion)</button>
-</div>
-<div class="status" id="status">Status: idle</div>
-<div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+    <h2>Reels Editor</h2>
+    <label>Upper</label><textarea id="upper">QUOTES OF THE DAY</textarea>
+    <label>Judul</label><textarea id="title">Rahasia Menjadi Lebih Produktif</textarea>
+    <label>Isi</label><textarea id="body" style="min-height:130px;">Fokus pada [[satu hal]] setiap waktu.&#10;Jangan biarkan distraksi mengganggu.</textarea>
+    <div class="btn-row">
+        <button class="btn-secondary" id="previewBtn">Preview</button>
+        <button class="btn-primary" id="renderBtn">Render (Stable Mode)</button>
+    </div>
+    <div id="status" style="margin-top:10px;font-size:12px;">Status: idle</div>
+    <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
 </div>
 <div class="panel right"><canvas id="canvas" width="1080" height="1920"></canvas></div>
 
 <script>
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
-const progressBar=document.getElementById('progressBar');
+const progressBar=document.querySelector('.progress-bar');
 const statusEl=document.getElementById('status');
 
-// Gunakan 1080p murni agar iPad tidak terlalu berat
+// Gunakan resolusi standar agar tidak membebani memori iPad
 canvas.width=1080; 
 canvas.height=1920;
 
-const upperEl=document.getElementById('upper');
-const titleEl=document.getElementById('title');
-const subtitleEl=document.getElementById('subtitle');
-const bodyEl=document.getElementById('body');
+let targetDuration=10;
+let titleCanvas=null;
 
-let animating=false, animStart=null, targetDuration=12;
-let bodyPages=[], pageDurations=[], titleCanvas=null;
+// --- FUNGSI ANIMASI SESUAI KEINGINAN ANDA ---
+function drawFrame(t) {
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, 1080, 1920);
 
-const TITLE_PRE_HOLD=0.3, TITLE_WIPE=0.8, TITLE_STATIC=2.0;
-const BODY_WIPE=0.4, PAGE_GAP=1.0, READING_WORDS_PER_SEC=3.0, HIGHLIGHT_LINE_DUR=0.8;
-
-// --- FUNGSI DRAWING (LOGIKA UTAMA ANDA) ---
-function wrapText(text,maxWidth){
-    const paragraphs=text.split(/\r?\n/);
-    const lines=[];
-    for(const para of paragraphs){
-        const words=para.trim().split(/\s+/);
-        if(!words[0]) { lines.push(''); continue; }
-        let line=words[0];
-        for(let i=1;i<words.length;i++){
-            if(ctx.measureText(line+' '+words[i]).width>maxWidth){ lines.push(line); line=words[i]; }
-            else line+=' '+words[i];
-        }
-        lines.push(line);
+    // Header & Judul Statis (Pre-drawn for speed)
+    if(!titleCanvas) {
+        titleCanvas = document.createElement('canvas');
+        titleCanvas.width = 1080; titleCanvas.height = 1920;
+        const tCtx = titleCanvas.getContext('2d');
+        tCtx.fillStyle = '#ffffff';
+        tCtx.textAlign = 'left';
+        tCtx.font = "700 34px 'PlusJakartaCustom'";
+        tCtx.fillText(document.getElementById('upper').value, 110, 1220);
+        tCtx.font = "700 85px 'DMSerifCustomBold'";
+        tCtx.fillText(document.getElementById('title').value, 110, 1330);
     }
-    return lines;
-}
 
-function tokenizeHighlighted(text){
-    let tokens=[],buf='',hi=false,i=0;
-    while(i<text.length){
-        if(!hi&&text.startsWith('[[',i)){ if(buf)tokens.push({text:buf,highlight:false}); buf=''; hi=true; i+=2; }
-        else if(hi&&text.startsWith(']]',i)){ if(buf)tokens.push({text:buf,highlight:true}); buf=''; hi=false; i+=2; }
-        else { buf+=text[i]; i++; }
-    }
-    if(buf)tokens.push({text:buf,highlight:hi});
-    return tokens;
-}
-
-function drawFrame(globalT){
-    ctx.fillStyle='#808080'; ctx.fillRect(0,0,1080,1920);
-    const titleTotal=TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC;
+    // Wipe Effect
+    let wipe = Math.min(1, t / 1.2);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, 110 + (860 * wipe), 1920);
+    ctx.clip();
+    ctx.drawImage(titleCanvas, 0, 0);
     
-    // Animasi Judul
-    if(globalT <= titleTotal){
-        ctx.save();
-        if(globalT > TITLE_PRE_HOLD){
-            let p=Math.min(1,(globalT-TITLE_PRE_HOLD)/TITLE_WIPE);
-            let clipW=110+830*(p*p*(3-2*p));
-            ctx.beginPath(); ctx.rect(0,0,clipW,1920); ctx.clip();
-        } else {
-            ctx.beginPath(); ctx.rect(0,0,110,1920); ctx.clip();
+    // Body Text & Highlight Logic (Sederhana agar lancar)
+    ctx.fillStyle = "#fff";
+    ctx.font = "700 50px 'PlusJakartaCustom'";
+    const lines = document.getElementById('body').value.split('\n');
+    lines.forEach((line, i) => {
+        let cleanLine = line.replace('[[','').replace(']]','');
+        ctx.fillText(cleanLine, 110, 1450 + (i * 70));
+        if(line.includes('[[')) {
+            let pHigh = Math.max(0, Math.min((t - 1.5 - (i*0.5)), 1));
+            ctx.fillStyle = "rgba(0,136,216,0.6)";
+            ctx.fillRect(110, 1405 + (i * 70), 400 * pHigh, 60);
+            ctx.fillStyle = "#fff";
         }
-        ctx.drawImage(titleCanvas,0,0);
-        ctx.restore();
-        return;
-    }
-
-    // Animasi Isi
-    const tBody=globalT-(titleTotal+PAGE_GAP);
-    if(tBody<0) return;
-
-    let acc=0;
-    for(let i=0;i<bodyPages.length;i++){
-        let d=pageDurations[i];
-        if(tBody < acc+d){
-            let pT=tBody-acc;
-            let wipe=Math.min(1,pT/BODY_WIPE);
-            ctx.save();
-            ctx.beginPath(); ctx.rect(0,0,110+830*wipe,1920); ctx.clip();
-            ctx.fillStyle="#fff"; ctx.font="700 54px 'PlusJakartaCustom'"; ctx.textAlign="left";
-            let y=1220;
-            bodyPages[i].forEach((line,idx)=>{
-                let tokens=tokenizeHighlighted(line);
-                let fullTxt=tokens.map(t=>t.text).join('');
-                ctx.fillText(fullTxt,110,y);
-                // Highlight Logic (Sederhana untuk stabilitas)
-                tokens.forEach(tok=>{
-                    if(tok.highlight){
-                        let startT=idx*HIGHLIGHT_LINE_DUR;
-                        let pHigh=Math.max(0,Math.min((pT-startT)/HIGHLIGHT_LINE_DUR,1));
-                        ctx.fillStyle="rgba(0,136,216,0.5)";
-                        ctx.fillRect(110,y-45,ctx.measureText(tok.text).width*pHigh,55);
-                    }
-                });
-                y+=64;
-            });
-            ctx.restore();
-            return;
-        }
-        acc+=d+PAGE_GAP;
-    }
+    });
+    ctx.restore();
 }
 
-function recompute(){
-    titleCanvas=document.createElement('canvas');
-    titleCanvas.width=1080; titleCanvas.height=1920;
-    const tCtx=titleCanvas.getContext('2d');
-    tCtx.fillStyle='#ffffff'; tCtx.textAlign='left';
-    tCtx.font="700 90px 'DMSerifCustomBold'";
-    tCtx.fillText(titleEl.value,110,1320);
-    
-    bodyPages = [bodyEl.value.split('\n')];
-    pageDurations = [8];
-    targetDuration = TITLE_PRE_HOLD+TITLE_WIPE+TITLE_STATIC+PAGE_GAP+8;
-}
-
-// --- RENDER STABLE (FRAME-BY-FRAME) ---
+// --- RENDERER YANG TIDAK AKAN MACET ---
 document.getElementById('renderBtn').onclick = async () => {
-    recompute();
-    animating = false;
-    statusEl.textContent = "Status: Rendering Frames...";
+    titleCanvas = null; // reset cache
+    statusEl.textContent = "Status: Recording...";
     
-    const encoder = new Whammy.Video(30); // 30 FPS
-    const totalFrames = Math.ceil(targetDuration * 30);
-    
-    for(let i=0; i<=totalFrames; i++){
-        drawFrame(i/30);
-        encoder.add(ctx); // Mengambil snapshot canvas saat ini
+    // Gunakan MediaRecorder tapi dengan Frame Capture Manual
+    const stream = canvas.captureStream(0); 
+    const recorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp8',
+        videoBitsPerSecond: 3000000 
+    });
+
+    let chunks = [];
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `reels-${Date.now()}.webm`;
+        a.click();
+        statusEl.textContent = "Selesai! Coba masukkan ke CapCut.";
+    };
+
+    recorder.start();
+    const track = stream.getVideoTracks()[0];
+    const fps = 30;
+    const totalFrames = targetDuration * fps;
+
+    for (let i = 0; i <= totalFrames; i++) {
+        drawFrame(i / fps);
+        track.requestFrame(); // Ambil frame saat ini
         
-        let progress = i/totalFrames;
-        progressBar.style.width = (progress*100) + "%";
+        let progress = i / totalFrames;
+        progressBar.style.width = (progress * 100) + "%";
         
-        // Memberi napas pada iPad agar tidak crash setiap 10 frame
-        if(i % 10 === 0) await new Promise(r => setTimeout(r, 1));
+        // JEDA KRUSIAL: Memberi waktu iPad menulis ke file tanpa membebani RAM
+        if (i % 5 === 0) await new Promise(r => setTimeout(r, 20));
     }
-    
-    statusEl.textContent = "Status: Compiling Video...";
-    const output = encoder.compile();
-    const url = URL.createObjectURL(output);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reels-${Date.now()}.webm`;
-    a.click();
-    statusEl.textContent = "Status: Selesai!";
+
+    // Jeda akhir agar file tertutup sempurna
+    setTimeout(() => recorder.stop(), 1000);
 };
 
-document.getElementById('previewBtn').onclick=()=>{
-    recompute(); animating=true; animStart=performance.now();
-    function step(ts){
-        if(!animating) return;
-        drawFrame((ts-animStart)/1000);
-        if((ts-animStart)/1000 < targetDuration) requestAnimationFrame(step);
-        else animating=false;
+// Preview
+document.getElementById('previewBtn').onclick = () => {
+    let start = performance.now();
+    function step(now) {
+        let elapsed = (now - start) / 1000;
+        drawFrame(elapsed);
+        if (elapsed < targetDuration) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
 };
