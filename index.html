@@ -2,115 +2,95 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor - Anti-Stutter Render</title>
+<title>Reels Pro - Theater Mode</title>
 <style>
-    body { background: #020617; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-    .card { background: #0f172a; padding: 20px; border-radius: 20px; border: 1px solid #1e293b; width: 100%; max-width: 400px; text-align: center; margin-bottom: 20px; }
-    canvas { background: #808080; border-radius: 12px; max-height: 65vh; max-width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
-    .btn { background: #2563eb; color: white; border: none; padding: 15px 30px; border-radius: 30px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; transition: 0.2s; }
-    .btn:disabled { background: #334155; opacity: 0.7; }
-    #status { margin-top: 10px; font-size: 14px; color: #94a3b8; }
-    .progress { width: 100%; height: 6px; background: #1e293b; border-radius: 3px; margin-top: 15px; overflow: hidden; display: none; }
-    #pBar { height: 100%; width: 0%; background: #2563eb; transition: width 0.1s; }
+    body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+    canvas { background: #808080; max-height: 98vh; max-width: 100vw; aspect-ratio: 9/16; display: block; }
+    .ui-layer { position: absolute; bottom: 30px; display: flex; gap: 15px; z-index: 100; transition: opacity 0.5s; }
+    .editor { position: absolute; top: 20px; left: 20px; background: rgba(15,23,42,0.9); padding: 15px; border-radius: 12px; border: 1px solid #334155; width: 280px; z-index: 101; }
+    textarea { width: 100%; background: #020617; color: white; border: 1px solid #444; padding: 8px; border-radius: 6px; margin-top: 5px; }
+    button { padding: 12px 24px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; }
+    .btn-play { background: #2563eb; color: white; }
+    .btn-full { background: #475569; color: white; }
+    .hide-ui .ui-layer, .hide-ui .editor { opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
 
-<div class="card">
-    <h3 style="margin-top:0">Stabilizer Render</h3>
-    <button id="renderBtn" class="btn">🎬 DOWNLOAD VIDEO MULUS</button>
-    <div class="progress" id="pCont"><div id="pBar"></div></div>
-    <div id="status">Siap digunakan</div>
+<div class="editor" id="editor">
+    <label style="font-size: 12px;">Edit Teks:</label>
+    <textarea id="txt">Fokus pada [[satu hal]] agar gerakan mulus 100%.</textarea>
 </div>
 
 <canvas id="canvas" width="1080" height="1920"></canvas>
 
+<div class="ui-layer" id="ui">
+    <button class="btn-full" id="fullBtn">🔲 Masuk Fullscreen</button>
+    <button class="btn-play" id="playBtn">▶️ Mulai Animasi (Rekam Layar)</button>
+</div>
+
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const renderBtn = document.getElementById('renderBtn');
-const statusEl = document.getElementById('status');
-const pBar = document.getElementById('pBar');
-const pCont = document.getElementById('pCont');
+let startTime = 0;
+let isPlaying = false;
 
-// --- FUNGSI GAMBAR (DIPASTIKAN SMOOTH) ---
 function draw(t) {
     ctx.fillStyle = '#808080';
     ctx.fillRect(0, 0, 1080, 1920);
 
-    // Animasi Objek (Uji Kelancaran)
-    let y = 960 + Math.sin(t * 3) * 300;
+    // Animasi Text
+    let p = Math.min(1, t / 1.5);
+    let ease = p * (2 - p);
     
-    // Shadow / Glow
-    ctx.shadowBlur = 40;
-    ctx.shadowColor = "rgba(37, 99, 235, 0.5)";
-    
-    ctx.fillStyle = "#2563eb";
+    ctx.save();
     ctx.beginPath();
-    ctx.roundRect(140, y - 75, 800, 150, 30);
-    ctx.fill();
-
-    // Reset Shadow untuk Teks
-    ctx.shadowBlur = 0;
+    ctx.rect(0, 0, 110 + (860 * ease), 1920);
+    ctx.clip();
+    
     ctx.fillStyle = "white";
-    ctx.font = "bold 60px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("FIX MOVEMENT: " + t.toFixed(1) + "s", 540, y + 15);
+    ctx.font = "bold 80px sans-serif";
+    ctx.fillText("PRO REELS MODE", 110, 1300);
+
+    if (t > 1.6) {
+        let hp = Math.min(1, (t-1.6)/0.8);
+        ctx.fillStyle = "rgba(0,136,216,0.6)";
+        ctx.fillRect(110, 1330, 600 * hp, 90);
+    }
+    ctx.restore();
 }
 
-// --- LOGIKA RENDER SINKRON ---
-renderBtn.onclick = async () => {
-    renderBtn.disabled = true;
-    pCont.style.display = 'block';
-    statusEl.textContent = "Menghubungkan encoder...";
-
-    // Gunakan stream 0 agar kita yang kontrol kapan frame diambil
-    const stream = canvas.captureStream(0); 
-    const recorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp8', // Codec paling stabil untuk browser
-        videoBitsPerSecond: 8000000 
-    });
-
-    let chunks = [];
-    recorder.ondataavailable = e => chunks.push(e.data);
-    recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `mulus-${Date.now()}.webm`;
-        a.click();
-        statusEl.textContent = "Selesai! Cek folder download.";
-        renderBtn.disabled = false;
-        pCont.style.display = 'none';
-    };
-
-    recorder.start();
-    const track = stream.getVideoTracks()[0];
-    const fps = 30;
-    const duration = 5; // Durasi tes
-    const totalFrames = duration * fps;
-
-    for (let i = 0; i <= totalFrames; i++) {
-        const currentTime = i / fps;
-        draw(currentTime);
-        
-        // KRUSIAL: Ambil frame secara manual setelah gambar selesai
-        track.requestFrame();
-
-        // Update Progress
-        let progress = (i / totalFrames) * 100;
-        pBar.style.width = progress + "%";
-        statusEl.textContent = `Processing Frame: ${i}/${totalFrames}`;
-
-        // JEDA: Memberi waktu iPad melakukan kompresi data (Anti-Lag)
-        await new Promise(r => setTimeout(r, 40)); 
+function loop(now) {
+    if(!isPlaying) return;
+    if(!startTime) startTime = now;
+    let elapsed = (now - startTime) / 1000;
+    
+    draw(elapsed);
+    
+    if(elapsed < 10) requestAnimationFrame(loop);
+    else {
+        isPlaying = false;
+        document.body.classList.remove('hide-ui');
+        startTime = 0;
     }
+}
 
-    statusEl.textContent = "Finalisasi file...";
-    setTimeout(() => recorder.stop(), 500);
+document.getElementById('playBtn').onclick = () => {
+    isPlaying = true;
+    document.body.classList.add('hide-ui'); // Sembunyikan semua tombol
+    requestAnimationFrame(loop);
 };
 
-// Preview awal
+document.getElementById('fullBtn').onclick = () => {
+    if (canvas.requestFullscreen) canvas.requestFullscreen();
+    else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
+};
+
+// Munculkan kembali UI jika canvas diketuk
+canvas.onclick = () => {
+    document.body.classList.remove('hide-ui');
+};
+
 draw(0);
 </script>
 </body>
