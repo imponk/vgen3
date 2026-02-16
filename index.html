@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor - iPad Pro Version</title>
+<title>Reels Editor - Final iPad Fix</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{box-sizing:border-box;}
@@ -26,6 +26,7 @@ button{padding:8px 16px;border-radius:999px;border:none;cursor:pointer;font-size
 .progress-bar{height:100%;width:0%;background:#2563eb;transition:width 0.1s linear;}
 canvas{background:#808080;border-radius:18px;border:1px solid #4b5563;max-height:92vh;max-width:100%;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/fix-webm-duration@1.0.5/fix-webm-duration.min.js"></script>
 </head>
 <body>
 <div class="panel left">
@@ -34,10 +35,10 @@ canvas{background:#808080;border-radius:18px;border:1px solid #4b5563;max-height
 <div class="field"><label>Judul</label><textarea id="title">Rahasia Menjadi Lebih Produktif</textarea></div>
 <div class="field"><label>Subjudul</label><textarea id="subtitle">Edisi Motivasi Pagi</textarea></div>
 <div class="field"><label>Isi</label><textarea id="body">Fokus pada [[satu hal]] setiap waktu.
-Jangan biarkan distraksi mengganggu.</textarea></div>
+Konsistensi adalah [[kunci utama]].</textarea></div>
 <div class="btn-row">
 <button class="btn-secondary" id="previewBtn">👁️ Preview</button>
-<button class="btn-primary" id="renderBtn">🎬 Render (MP4 for iPad)</button>
+<button class="btn-primary" id="renderBtn">🎬 Render (Fix iPad Movement)</button>
 </div>
 <div class="status" id="status">Status: idle</div>
 <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
@@ -66,10 +67,11 @@ const statusEl=document.getElementById('status');
 
 let animating=false,animStart=null;
 let targetDuration=12;
-let bodyPages=[], pageDurations=[], titleCanvas=null;
-let titleLayout={marginLeft:110,textWidth:830,upperLines:[],titleLines:[],subtitleLines:[]};
+let bodyPages=[];
+let pageDurations=[];
+let titleCanvas=null;
 
-const TITLE_PRE_HOLD=0.3; 
+const TITLE_PRE_HOLD=0.3; // Sesuai permintaan: 0.3 detik statis di awal
 const TITLE_WIPE=0.8;
 const TITLE_STATIC=2.0;
 const BODY_WIPE=0.4;
@@ -80,7 +82,7 @@ const HIGHLIGHT_LINE_DUR=0.8;
 function setStatus(t){ statusEl.textContent='Status: '+t; }
 function setProgress(p){ progressBar.style.width=(p*100)+"%"; }
 
-// --- FUNGSI WRAP & TOKEN (Tetap sama) ---
+// --- FUNGSI DRAWING (SAMA SEPERTI SEBELUMNYA) ---
 function wrapText(text,maxWidth,fontSpec){
 if(fontSpec)ctx.font=fontSpec;
 const paragraphs=text.split(/\r?\n/);
@@ -151,22 +153,19 @@ return{y,linesUsed:lines.length};
 
 function rebuildTitleLayout(){
 const textWidth=830;
-titleLayout.upperLines=wrapText(upperEl.value.trim(),textWidth,"700 34px 'PlusJakartaCustom'");
-titleLayout.titleLines=wrapText(titleEl.value.trim(),textWidth,"700 90px 'DMSerifCustomBold'");
-titleLayout.subtitleLines=wrapText(subtitleEl.value.trim(),textWidth,"700 34px 'PlusJakartaCustom'");
 titleCanvas=document.createElement('canvas');
 titleCanvas.width=1080; titleCanvas.height=1920;
 const tCtx=titleCanvas.getContext('2d');
 tCtx.fillStyle='#ffffff'; tCtx.textAlign='left';
 let y=1220;
 tCtx.font="700 34px 'PlusJakartaCustom'";
-titleLayout.upperLines.forEach(l=>{ tCtx.fillText(l,110,y); y+=36; });
+wrapText(upperEl.value.trim(),textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=36; });
 y+=70;
 tCtx.font="700 90px 'DMSerifCustomBold'";
-titleLayout.titleLines.forEach(l=>{ tCtx.fillText(l,110,y); y+=90; });
+wrapText(titleEl.value.trim(),textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=90; });
 y-=20;
 tCtx.font="700 34px 'PlusJakartaCustom'";
-titleLayout.subtitleLines.forEach(l=>{ tCtx.fillText(l,110,y); y+=36; });
+wrapText(subtitleEl.value.trim(),textWidth).forEach(l=>{ tCtx.fillText(l,110,y); y+=36; });
 }
 
 function drawTitleScene(t){
@@ -243,26 +242,29 @@ recompute(); setStatus("preview"); setProgress(0);
 animStart=null; animating=true; requestAnimationFrame(animate);
 };
 
-// --- RENDER KE MP4 (H.264) ---
+// --- BAGIAN RENDER DENGAN PERBAIKAN METADATA ---
 renderBtn.onclick=()=>{
 recompute(); setStatus("rendering"); setProgress(0);
 const stream=canvas.captureStream(30);
-
-// Cek apakah browser mendukung H.264, jika tidak fallback ke VP8
-let options = { mimeType: 'video/mp4;codecs=avc1.42E01E', videoBitsPerSecond: 4000000 };
-if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-    options = { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 4000000 };
-}
-
-const recorder=new MediaRecorder(stream, options);
+const recorder=new MediaRecorder(stream,{
+  mimeType:'video/webm;codecs=vp8',
+  videoBitsPerSecond: 2500000
+});
 let chunks=[];
+let startTime = Date.now();
+
 recorder.ondataavailable=e=>{ if(e.data.size > 0) chunks.push(e.data); };
 
-recorder.onstop=()=>{
-  const blob=new Blob(chunks,{type: options.mimeType.split(';')[0]});
-  const extension = options.mimeType.includes('mp4') ? 'mp4' : 'webm';
-  const a=document.createElement("a");
+recorder.onstop=async ()=>{
+  const duration = Date.now() - startTime;
+  let blob = new Blob(chunks, {type:'video/webm'});
   
+  // SOLUSI KRUSIAL: Memperbaiki durasi file agar dikenali iPad
+  if (typeof ysFixWebmDuration !== 'undefined') {
+    blob = await ysFixWebmDuration(blob, duration, {logger: false});
+  }
+
+  const a=document.createElement("a");
   const now = new Date();
   const ts = [
     String(now.getDate()).padStart(2, '0'),
@@ -273,14 +275,14 @@ recorder.onstop=()=>{
   ].join('');
 
   a.href=URL.createObjectURL(blob);
-  a.download=`reels-${ts}.${extension}`;
+  a.download=`reels-${ts}.webm`;
   a.click();
   setStatus("idle");
 };
 
-recorder.start(1000); 
+recorder.start(); 
 animStart=null; animating=true; requestAnimationFrame(animate);
-setTimeout(()=>{ recorder.stop(); }, (targetDuration * 1000) + 1500);
+setTimeout(()=>{ recorder.stop(); }, (targetDuration * 1000) + 500);
 };
 
 window.onload=()=>{ recompute(); drawFrame(0); setProgress(0); };
