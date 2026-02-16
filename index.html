@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor VP8 Optimized</title>
+<title>Reels Editor VP8 iPad Optimized</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{box-sizing:border-box;}
@@ -36,7 +36,7 @@ canvas{background:#808080;border-radius:18px;border:1px solid #4b5563;max-height
 <div class="field"><label>Isi</label><textarea id="body"></textarea></div>
 <div class="btn-row">
 <button class="btn-secondary" id="previewBtn">👁️ Preview</button>
-<button class="btn-primary" id="renderBtn">🎬 Render (WEBM VP8)</button>
+<button class="btn-primary" id="renderBtn">🎬 Render (Optimized VP8)</button>
 </div>
 <div class="status" id="status">Status: idle</div>
 <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
@@ -63,7 +63,7 @@ const previewBtn=document.getElementById('previewBtn');
 const renderBtn=document.getElementById('renderBtn');
 const statusEl=document.getElementById('status');
 
-let animating=false,recording=false,animStart=null;
+let animating=false,animStart=null;
 let targetDuration=12;
 let bodyPages=[];
 let pageDurations=[];
@@ -82,6 +82,7 @@ const HIGHLIGHT_LINE_DUR=0.8;
 function setStatus(t){ statusEl.textContent='Status: '+t; }
 function setProgress(p){ progressBar.style.width=(p*100)+"%"; }
 
+// Fungsi utilitas wrapText & tokenize (mengacu pada)
 function wrapText(text,maxWidth,fontSpec){
 if(fontSpec)ctx.font=fontSpec;
 const paragraphs=text.split(/\r?\n/);
@@ -207,7 +208,7 @@ if(globalT<=titleTotal){ drawTitleScene(globalT); return; }
 if(globalT<=titleTotal+PAGE_GAP){ ctx.fillStyle='#808080'; ctx.fillRect(0,0,1080,1920); return; }
 const tBody=globalT-(titleTotal+PAGE_GAP);
 let acc=0;
-for(let i=0;i<bodyPages.length;i++){
+for(let i=0; i<bodyPages.length; i++){
 const d=pageDurations[i];
 if(tBody<acc+d){ drawBodyPage(i,tBody-acc); return; }
 acc+=d;
@@ -249,33 +250,44 @@ animStart=null; animating=true; requestAnimationFrame(animate);
 
 renderBtn.onclick=()=>{
 recompute(); setStatus("rendering"); setProgress(0);
-// Optimasi: Capture stabil 30fps
+// Capture stream dengan frame rate yang konsisten (30fps)
 const stream=canvas.captureStream(30);
+
+// Konfigurasi Recorder Optimized untuk iPad
 const recorder=new MediaRecorder(stream,{
   mimeType:'video/webm;codecs=vp8',
-  videoBitsPerSecond: 5000000 // Optimasi: Bitrate konstan 5Mbps
+  videoBitsPerSecond: 2500000 // Menurunkan bitrate agar dekoding iPad lancar
 });
+
 let chunks=[];
-recorder.ondataavailable=e=>{ chunks.push(e.data); };
+recorder.ondataavailable=e=>{ if(e.data.size > 0) chunks.push(e.data); };
+
 recorder.onstop=()=>{
-const blob=new Blob(chunks,{type:'video/webm'});
-const a=document.createElement("a");
-const now = new Date();
-const date = String(now.getDate()).padStart(2, '0');
-const month = String(now.getMonth() + 1).padStart(2, '0');
-const hours = String(now.getHours()).padStart(2, '0');
-const minutes = String(now.getMinutes()).padStart(2, '0');
-const seconds = String(now.getSeconds()).padStart(2, '0');
-const ts = `${date}${month}${hours}${minutes}${seconds}`;
-a.href=URL.createObjectURL(blob);
-a.download=`reels-${ts}.webm`;
-a.click();
-setStatus("idle");
+  const blob=new Blob(chunks,{type:'video/webm'});
+  const a=document.createElement("a");
+  
+  // Penamaan unik (DDMMHHmmss)
+  const now = new Date();
+  const ts = [
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0')
+  ].join('');
+
+  a.href=URL.createObjectURL(blob);
+  a.download=`reels-${ts}.webm`;
+  a.click();
+  setStatus("idle");
 };
-recorder.start();
+
+// Mulai recording dengan timeslice 100ms untuk indeks file yang lebih baik
+recorder.start(100); 
 animStart=null; animating=true; requestAnimationFrame(animate);
-// Optimasi: Tambahan 1 detik buffer akhir
-setTimeout(()=>{ recorder.stop(); },targetDuration*1000+1000);
+
+// Memberi waktu ekstra di akhir agar metadata durasi tertutup sempurna
+setTimeout(()=>{ recorder.stop(); }, (targetDuration * 1000) + 1200);
 };
 
 window.onload=()=>{
