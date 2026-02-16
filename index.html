@@ -2,96 +2,146 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor - Replay Mode</title>
+<title>Reels Editor - Pro Replay Mode</title>
 <style>
-    body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-    canvas { background: #808080; max-height: 95vh; max-width: 100vw; aspect-ratio: 9/16; }
-    .ui { position: absolute; bottom: 20px; display: flex; gap: 10px; z-index: 100; transition: opacity 0.3s; }
-    button { padding: 15px 25px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
-    #playBtn { background: #2563eb; color: white; }
-    #fullBtn { background: #334155; color: white; }
-    .hidden { opacity: 0; pointer-events: none; }
+    @font-face { font-family: 'DMSerif'; src: url('./fonts/DMSerifDisplay-Bold.ttf'); font-weight: 700; }
+    @font-face { font-family: 'PlusJakarta'; src: url('./fonts/PlusJakartaSans-Bold.woff2'); font-weight: 700; }
+
+    body { margin: 0; background: #000; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; color: white; font-family: 'PlusJakarta', sans-serif; }
+    
+    canvas { background: #808080; max-height: 98vh; max-width: 100vw; aspect-ratio: 9/16; cursor: pointer; }
+
+    /* UI Overlay */
+    .controls { position: absolute; bottom: 30px; display: flex; gap: 15px; z-index: 10; transition: opacity 0.5s; }
+    .editor-panel { position: absolute; top: 20px; left: 20px; background: rgba(15, 23, 42, 0.9); padding: 20px; border-radius: 12px; border: 1px solid #334155; width: 300px; z-index: 11; transition: transform 0.3s; }
+    
+    label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 5px; }
+    textarea { width: 100%; background: #020617; color: white; border: 1px solid #334155; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-family: sans-serif; resize: none; }
+    
+    button { padding: 12px 24px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; font-size: 14px; }
+    .btn-play { background: #2563eb; color: white; }
+    .btn-full { background: #334155; color: white; }
+    .btn-hide { background: #ef4444; color: white; width: 100%; margin-top: 5px; }
+    
+    .hidden { opacity: 0; pointer-events: none; transform: translateX(-400px); }
+    .hide-ui .controls, .hide-ui .editor-panel { opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
 
-    <canvas id="canvas" width="1080" height="1920"></canvas>
-    
-    <div class="ui" id="controls">
-        <button id="fullBtn">🔲 Fullscreen</button>
-        <button id="playBtn">▶️ Play Animasi</button>
-    </div>
+<div class="editor-panel" id="editor">
+    <label>Upper</label>
+    <textarea id="upper">QUOTES OF THE DAY</textarea>
+    <label>Judul</label>
+    <textarea id="title">Cara Menjadi Lebih Produktif</textarea>
+    <label>Isi (Gunakan [[ ]] untuk highlight)</label>
+    <textarea id="body" style="height: 100px;">Fokus pada [[satu hal]] setiap waktu.&#10;Jangan biarkan distraksi [[mengganggu]].</textarea>
+    <button class="btn-hide" onclick="toggleEditor()">Sembunyikan Panel</button>
+</div>
+
+<canvas id="canvas" width="1080" height="1920"></canvas>
+
+<div class="controls" id="ui">
+    <button class="btn-full" id="fullBtn">🔲 Fullscreen</button>
+    <button class="btn-play" id="playBtn">▶️ Play Animasi</button>
+</div>
 
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const playBtn = document.getElementById('playBtn');
-const fullBtn = document.getElementById('fullBtn');
-const controls = document.getElementById('controls');
+const editor = document.getElementById('editor');
+const ui = document.getElementById('ui');
 
-// --- LOGIKA ANIMASI (KEMBALI KE STYLE ASLI ANDA) ---
+// --- LOGIKA ANIMASI ASLI (REPLAY VERSION) ---
 function drawFrame(t) {
     ctx.fillStyle = '#808080';
     ctx.fillRect(0, 0, 1080, 1920);
+    const margin = 110;
 
-    // Animasi Wipe Judul
-    let p = Math.min(1, t / 1.5);
-    let ease = p * (2 - p); 
+    // 1. Animasi Wipe Judul
+    let pTitle = Math.min(1, t / 1.2);
+    let smoothTitle = pTitle * pTitle * (3 - 2 * pTitle);
     
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, 0, 110 + (860 * ease), 1920);
+    ctx.rect(0, 0, margin + (860 * smoothTitle), 1920);
     ctx.clip();
     
     ctx.fillStyle = "white";
-    ctx.font = "bold 90px sans-serif";
-    ctx.fillText("JUDUL MULUS", 110, 1300);
+    ctx.textAlign = "left";
+    ctx.font = "700 34px 'PlusJakarta'";
+    ctx.fillText(document.getElementById('upper').value, margin, 1220);
+    
+    ctx.font = "700 90px 'DMSerif'";
+    ctx.fillText(document.getElementById('title').value, margin, 1330);
     ctx.restore();
 
-    // Animasi Highlight
-    if (t > 1.8) {
-        let hP = Math.min(1, (t - 1.8) / 0.8);
-        ctx.fillStyle = "rgba(0,136,216,0.6)";
-        ctx.fillRect(110, 1400, 500 * hP, 80);
-        ctx.fillStyle = "white";
-        ctx.font = "bold 50px sans-serif";
-        ctx.fillText("Highlight Tanpa Patah", 110, 1460);
+    // 2. Animasi Isi & Highlight
+    const startBody = 1.5;
+    if (t > startBody) {
+        const bodyT = t - startBody;
+        const lines = document.getElementById('body').value.split('\n');
+        
+        lines.forEach((line, i) => {
+            let y = 1450 + (i * 80);
+            let cleanLine = line.replace(/\[\[/g, '').replace(/\]\]/g, '');
+            
+            // Highlight bar
+            if (line.includes('[[')) {
+                let hP = Math.max(0, Math.min((bodyT - (i * 0.3)) / 0.8, 1));
+                ctx.fillStyle = "rgba(0,136,216,0.6)";
+                ctx.fillRect(margin - 5, y - 55, 600 * hP, 75);
+            }
+            
+            ctx.fillStyle = "white";
+            ctx.font = "700 54px 'PlusJakarta'";
+            ctx.fillText(cleanLine, margin, y);
+        });
     }
 }
 
-// --- LOGIKA KONTROL ---
+// --- CONTROLS ---
 let isPlaying = false;
-let startTS = 0;
+let startTime = 0;
 
 function animate(now) {
     if (!isPlaying) return;
-    if (!startTS) startTS = now;
+    if (!startTime) startTime = now;
     
-    let elapsed = (now - startTS) / 1000;
+    let elapsed = (now - startTime) / 1000;
     drawFrame(elapsed);
     
-    if (elapsed < 10) { // Durasi 10 detik
-        requestAnimationFrame(animate);
-    } else {
+    if (elapsed < 10) requestAnimationFrame(animate);
+    else {
         isPlaying = false;
-        controls.classList.remove('hidden');
-        startTS = 0;
+        document.body.classList.remove('hide-ui');
+        startTime = 0;
     }
 }
 
-playBtn.onclick = () => {
+document.getElementById('playBtn').onclick = () => {
     isPlaying = true;
-    controls.classList.add('hidden'); // Sembunyikan tombol saat main
+    document.body.classList.add('hide-ui'); // Sembunyikan UI saat play
     requestAnimationFrame(animate);
 };
 
-fullBtn.onclick = () => {
+document.getElementById('fullBtn').onclick = () => {
     if (canvas.requestFullscreen) canvas.requestFullscreen();
     else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
 };
 
-// Gambar frame pertama
-drawFrame(0);
+function toggleEditor() {
+    editor.classList.toggle('hidden');
+}
+
+// Klik canvas untuk memunculkan kembali UI
+canvas.onclick = () => {
+    document.body.classList.remove('hide-ui');
+    editor.classList.remove('hidden');
+};
+
+// Inisialisasi
+window.onload = () => drawFrame(0);
 </script>
 </body>
 </html>
