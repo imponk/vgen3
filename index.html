@@ -72,7 +72,7 @@ let titleCanvas=null;
 let titleLayout={marginLeft:110,textWidth:830,upperLines:[],titleLines:[],subtitleLines:[]};
 
 // KONSTANTA TIMING
-const TITLE_PRE_HOLD=0.3; // Nongol statis 0.3 detik sesuai permintaan
+const TITLE_PRE_HOLD=0.3; // Nongol statis 0.3 detik
 const TITLE_WIPE=0.8;
 const TITLE_STATIC=2.0;
 const BODY_WIPE=0.4;
@@ -259,8 +259,18 @@ recorder.ondataavailable=e=>{ chunks.push(e.data); };
 recorder.onstop=()=>{
 const blob=new Blob(chunks,{type:'video/webm'});
 const a=document.createElement("a");
+
+// Logika Penamaan Unik (DDMMHHmmss)
+const now = new Date();
+const date = String(now.getDate()).padStart(2, '0');
+const month = String(now.getMonth() + 1).padStart(2, '0');
+const hours = String(now.getHours()).padStart(2, '0');
+const minutes = String(now.getMinutes()).padStart(2, '0');
+const seconds = String(now.getSeconds()).padStart(2, '0');
+const ts = `${date}${month}${hours}${minutes}${seconds}`;
+
 a.href=URL.createObjectURL(blob);
-a.download="reels_vp8.webm";
+a.download=`reels-${ts}.webm`; // Contoh hasil: reels-1602081430.webm
 a.click();
 setStatus("idle");
 };
