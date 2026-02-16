@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor - Final Perfect Sync</title>
+<title>Reels Editor - Final Strict Frame Sync</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{box-sizing:border-box;}
@@ -10,13 +10,13 @@
 @font-face{font-family:'PlusJakartaCustom';src:url('./fonts/PlusJakartaSans-Bold.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap;}
 body{margin:0;padding:12px;display:flex;gap:16px;background:radial-gradient(circle at top,#020617 0%,#020617 40%,#020617 100%);color:#e5e7eb;font-family:'PlusJakartaCustom',sans-serif;}
 .panel{background:#020617;padding:16px 14px;border-radius:14px;border:1px solid #1f2937;box-shadow:0 16px 40px rgba(0,0,0,0.65);}
-.left{width:380px;max-width:100%;flex-shrink:0;}
-.right{flex:1;display:flex;justify-content:center;align-items:center;min-width:0;}
-h2{margin:0 0 4px 0;font-size:18px;letter-spacing:0.02em;}
+.left{width:380px;flex-shrink:0;}
+.right{flex:1;display:flex;justify-content:center;align-items:center;}
+h2{margin:0 0 4px 0;font-size:18px;}
 .field{margin-top:10px;}
 label{font-size:13px;display:block;margin-bottom:4px;color:#cbd5f5;}
 textarea{width:100%;min-height:56px;background:#020617;color:#e5e7eb;border-radius:10px;border:1px solid #334155;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical;outline:none;}
-.btn-row{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;}
+.btn-row{margin-top:12px;display:flex;gap:8px;}
 button{padding:8px 16px;border-radius:999px;border:none;cursor:pointer;font-size:14px;font-weight:500;}
 .btn-primary{background:#2563eb;color:#fff;}
 .btn-secondary{background:#111827;color:#e5e7eb;border:1px solid #334155;}
@@ -30,9 +30,9 @@ canvas{background:#808080;border-radius:18px;border:1px solid #4b5563;max-height
 <div class="panel left">
     <h2>Reels Editor</h2>
     <div class="field"><label>Upper</label><textarea id="upper">QUOTES OF THE DAY</textarea></div>
-    <div class="field"><label>Judul</label><textarea id="title">Cara Mengatasi Rasa Malas</textarea></div>
-    <div class="field"><label>Subjudul</label><textarea id="subtitle">Motivasi Diri</textarea></div>
-    <div class="field"><label>Isi</label><textarea id="body" style="min-height:130px;">Mulailah dari [[hal kecil]].&#10;Fokus pada [[proses]], bukan hasil.</textarea></div>
+    <div class="field"><label>Judul</label><textarea id="title">Rahasia Menjadi Lebih Produktif</textarea></div>
+    <div class="field"><label>Subjudul</label><textarea id="subtitle">Edisi Motivasi Pagi</textarea></div>
+    <div class="field"><label>Isi</label><textarea id="body">Fokus pada [[satu hal]] setiap waktu.&#10;Konsistensi adalah [[kunci utama]].</textarea></div>
     <div class="btn-row">
         <button class="btn-secondary" id="previewBtn">👁️ Preview</button>
         <button class="btn-primary" id="renderBtn">🎬 Render (Strict Fix)</button>
@@ -48,134 +48,124 @@ const ctx=canvas.getContext('2d');
 const progressBar=document.querySelector('.progress-bar');
 const statusEl=document.getElementById('status');
 
-// Gunakan 1.0 agar memori iPad aman
 canvas.width=1080; canvas.height=1920;
 
+// Konstanta Timing (Persis seperti style Anda)
 const TITLE_PRE_HOLD=0.3, TITLE_WIPE=0.8, TITLE_STATIC=2.0;
 const BODY_WIPE=0.4, PAGE_GAP=1.0, HIGHLIGHT_LINE_DUR=0.8;
 
-let targetDuration=10;
-
-// Fungsi menggambar satu frame berdasarkan detik (t)
 function drawFrame(t) {
     ctx.fillStyle = '#808080';
     ctx.fillRect(0, 0, 1080, 1920);
 
     const margin = 110;
     const textWidth = 830;
-
-    // 1. Draw Upper & Title & Subtitle
     const titleTotal = TITLE_PRE_HOLD + TITLE_WIPE + TITLE_STATIC;
-    
-    // Logika Wipe Animasi Judul
-    let clipProgress = 1;
-    if(t <= TITLE_PRE_HOLD) clipProgress = 0;
-    else if(t <= TITLE_PRE_HOLD + TITLE_WIPE) {
-        let p = (t - TITLE_PRE_HOLD) / TITLE_WIPE;
-        clipProgress = p * p * (3 - 2 * p); // Smoothstep
-    }
 
+    // --- ANIMASI JUDUL (Style Wipe) ---
+    let titleClip = 0;
+    if (t > TITLE_PRE_HOLD) {
+        let p = Math.min(1, (t - TITLE_PRE_HOLD) / TITLE_WIPE);
+        titleClip = p * p * (3 - 2 * p); // Smoothstep
+    }
+    
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, 0, margin + (textWidth * clipProgress), 1920);
+    ctx.rect(0, 0, margin + (textWidth * titleClip), 1920);
     ctx.clip();
-
-    // Text Elements
+    
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'left';
-    
-    // Upper
     ctx.font = "700 34px 'PlusJakartaCustom'";
     ctx.fillText(document.getElementById('upper').value, margin, 1220);
-    
-    // Title
     ctx.font = "700 90px 'DMSerifCustomBold'";
     ctx.fillText(document.getElementById('title').value, margin, 1330);
-    
-    // Subtitle
     ctx.font = "700 34px 'PlusJakartaCustom'";
-    ctx.fillText(document.getElementById('subtitle').value, margin, 1380);
-    
+    ctx.fillText(document.getElementById('subtitle').value, margin, 1385);
     ctx.restore();
 
-    // 2. Draw Body Text (Tampil setelah Judul selesai)
-    if(t > titleTotal + PAGE_GAP) {
+    // --- ANIMASI ISI (Highlight Style) ---
+    if (t > titleTotal + PAGE_GAP) {
         const bodyT = t - (titleTotal + PAGE_GAP);
-        ctx.font = "700 54px 'PlusJakartaCustom'";
         const lines = document.getElementById('body').value.split('\n');
         
-        let wipeP = Math.min(1, bodyT / BODY_WIPE);
+        let bodyWipe = Math.min(1, bodyT / BODY_WIPE);
         ctx.save();
         ctx.beginPath();
-        ctx.rect(margin, 0, textWidth * (wipeP * wipeP * (3 - 2 * wipeP)), 1920);
+        ctx.rect(margin, 0, textWidth * (bodyWipe * bodyWipe * (3 - 2 * bodyWipe)), 1920);
         ctx.clip();
 
         lines.forEach((line, i) => {
             let y = 1500 + (i * 75);
             let cleanLine = line.replace(/\[\[/g, '').replace(/\]\]/g, '');
             
-            // Highlight Logic
-            if(line.includes('[[')) {
-                let startH = i * 0.3; 
+            if (line.includes('[[')) {
+                let startH = i * 0.4;
                 let hProgress = Math.max(0, Math.min((bodyT - startH) / HIGHLIGHT_LINE_DUR, 1));
                 ctx.fillStyle = "rgba(0,136,216,0.6)";
-                ctx.fillRect(margin - 5, y - 48, textWidth * 0.6 * hProgress, 65);
+                ctx.fillRect(margin - 5, y - 48, textWidth * 0.7 * hProgress, 65);
             }
             
             ctx.fillStyle = "#fff";
+            ctx.font = "700 54px 'PlusJakartaCustom'";
             ctx.fillText(cleanLine, margin, y);
         });
         ctx.restore();
     }
 }
 
-// RENDERER: MENGUNCI FRAME AGAR TIDAK TERPUTUS
+// RENDERER: Kunci pada Frame Index (Bukan Waktu Asli)
 document.getElementById('renderBtn').onclick = async () => {
     statusEl.textContent = "Status: Rendering Frame-by-Frame...";
     const fps = 30;
-    const totalFrames = targetDuration * fps;
+    const duration = 10; // Total durasi video
+    const totalFrames = duration * fps;
     
-    const stream = canvas.captureStream(0); // Manual Capture
+    // Capture manual stream (0 FPS artinya kita yang trigger capture tiap frame)
+    const stream = canvas.captureStream(0);
     const recorder = new MediaRecorder(stream, {
         mimeType: 'video/webm;codecs=vp8',
-        videoBitsPerSecond: 5000000
+        videoBitsPerSecond: 5000000 
     });
 
     let chunks = [];
     recorder.ondataavailable = e => chunks.push(e.data);
     recorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'video/webm' });
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `reels-perfect-${Date.now()}.webm`;
+        a.download = `reels-fixed-${Date.now()}.webm`;
         a.click();
-        statusEl.textContent = "Status: Idle";
+        statusEl.textContent = "Status: idle";
     };
 
     recorder.start();
     const track = stream.getVideoTracks()[0];
 
     for (let i = 0; i <= totalFrames; i++) {
-        drawFrame(i / fps); // Hitung posisi animasi berdasarkan index frame
-        track.requestFrame(); // Paksa recorder ambil frame ini
+        // Kunci matematika animasi: T adalah frame ke-i dibagi FPS
+        const t = i / fps;
+        drawFrame(t);
+        
+        // Paksa rekorder mengambil frame ini TEPAT setelah digambar
+        track.requestFrame();
         
         progressBar.style.width = ((i / totalFrames) * 100) + "%";
         
-        // Jeda 30ms agar iPad punya waktu menulis data ke disk
+        // Beri jeda 30ms agar iPad tidak "tersedak" saat encoding
         await new Promise(r => setTimeout(r, 30));
     }
 
+    // Jeda kecil sebelum tutup rekaman
     setTimeout(() => recorder.stop(), 500);
 };
 
 document.getElementById('previewBtn').onclick = () => {
     let start = performance.now();
-    statusEl.textContent = "Status: Previewing...";
     function step(now) {
         let elapsed = (now - start) / 1000;
         drawFrame(elapsed);
-        if (elapsed < targetDuration) requestAnimationFrame(step);
-        else statusEl.textContent = "Status: idle";
+        if (elapsed < 10) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
 };
