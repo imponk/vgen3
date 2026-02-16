@@ -2,25 +2,25 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor - Final Click-to-Download</title>
+<title>Reels Editor - Anti-Stutter Render</title>
 <style>
-    body { background: #020617; color: #fff; font-family: system-ui; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-    canvas { background: #808080; border-radius: 16px; max-height: 70vh; max-width: 100%; border: 1px solid #334155; }
-    .panel { background: #0f172a; padding: 20px; border-radius: 16px; border: 1px solid #1e293b; width: 100%; max-width: 400px; margin-bottom: 20px; text-align: center; }
-    .btn-main { background: #2563eb; color: white; width: 100%; padding: 15px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
-    .btn-main:disabled { background: #334155; cursor: not-allowed; }
-    #status { margin-top: 12px; font-size: 14px; color: #94a3b8; }
-    .progress-container { width: 100%; height: 6px; background: #1e293b; border-radius: 3px; margin-top: 10px; display: none; }
-    #progressBar { height: 100%; width: 0%; background: #2563eb; border-radius: 3px; }
+    body { background: #020617; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+    .card { background: #0f172a; padding: 20px; border-radius: 20px; border: 1px solid #1e293b; width: 100%; max-width: 400px; text-align: center; margin-bottom: 20px; }
+    canvas { background: #808080; border-radius: 12px; max-height: 65vh; max-width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+    .btn { background: #2563eb; color: white; border: none; padding: 15px 30px; border-radius: 30px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; transition: 0.2s; }
+    .btn:disabled { background: #334155; opacity: 0.7; }
+    #status { margin-top: 10px; font-size: 14px; color: #94a3b8; }
+    .progress { width: 100%; height: 6px; background: #1e293b; border-radius: 3px; margin-top: 15px; overflow: hidden; display: none; }
+    #pBar { height: 100%; width: 0%; background: #2563eb; transition: width 0.1s; }
 </style>
 </head>
 <body>
 
-<div class="panel">
-    <h3 style="margin-top:0">Reels Stable Render</h3>
-    <button id="startBtn" class="btn-main">🎬 DOWNLOAD VIDEO MULUS</button>
-    <div class="progress-container" id="pCont"><div id="progressBar"></div></div>
-    <div id="status">Status: Ready</div>
+<div class="card">
+    <h3 style="margin-top:0">Stabilizer Render</h3>
+    <button id="renderBtn" class="btn">🎬 DOWNLOAD VIDEO MULUS</button>
+    <div class="progress" id="pCont"><div id="pBar"></div></div>
+    <div id="status">Siap digunakan</div>
 </div>
 
 <canvas id="canvas" width="1080" height="1920"></canvas>
@@ -28,50 +28,47 @@
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const startBtn = document.getElementById('startBtn');
+const renderBtn = document.getElementById('renderBtn');
 const statusEl = document.getElementById('status');
-const pBar = document.getElementById('progressBar');
+const pBar = document.getElementById('pBar');
 const pCont = document.getElementById('pCont');
 
-// --- LOGIKA GAMBAR ---
+// --- FUNGSI GAMBAR (DIPASTIKAN SMOOTH) ---
 function draw(t) {
     ctx.fillStyle = '#808080';
     ctx.fillRect(0, 0, 1080, 1920);
 
-    // Animasi Judul (Wipe)
-    let p = Math.min(1, t / 1.5);
-    let ease = p * p * (3 - 2 * p);
+    // Animasi Objek (Uji Kelancaran)
+    let y = 960 + Math.sin(t * 3) * 300;
     
-    ctx.save();
+    // Shadow / Glow
+    ctx.shadowBlur = 40;
+    ctx.shadowColor = "rgba(37, 99, 235, 0.5)";
+    
+    ctx.fillStyle = "#2563eb";
     ctx.beginPath();
-    ctx.rect(0, 0, 110 + (860 * ease), 1920);
-    ctx.clip();
-    ctx.fillStyle = "white";
-    ctx.font = "bold 90px sans-serif";
-    ctx.fillText("HASIL MULUS", 110, 1300);
-    ctx.restore();
+    ctx.roundRect(140, y - 75, 800, 150, 30);
+    ctx.fill();
 
-    // Animasi Highlight
-    if (t > 1.8) {
-        let hP = Math.min(1, (t - 1.8) / 0.8);
-        ctx.fillStyle = "rgba(0,136,216,0.6)";
-        ctx.fillRect(110, 1395, 500 * hP, 75);
-        ctx.fillStyle = "white";
-        ctx.font = "bold 50px sans-serif";
-        ctx.fillText("100% Tanpa Patah", 110, 1460);
-    }
+    // Reset Shadow untuk Teks
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "white";
+    ctx.font = "bold 60px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("FIX MOVEMENT: " + t.toFixed(1) + "s", 540, y + 15);
 }
 
-// --- LOGIKA RENDER ---
-startBtn.onclick = async () => {
-    startBtn.disabled = true;
+// --- LOGIKA RENDER SINKRON ---
+renderBtn.onclick = async () => {
+    renderBtn.disabled = true;
     pCont.style.display = 'block';
-    statusEl.textContent = "Menyiapkan Encoder...";
+    statusEl.textContent = "Menghubungkan encoder...";
 
-    const stream = canvas.captureStream(0); // Manual stream
+    // Gunakan stream 0 agar kita yang kontrol kapan frame diambil
+    const stream = canvas.captureStream(0); 
     const recorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp8',
-        videoBitsPerSecond: 8000000
+        mimeType: 'video/webm;codecs=vp8', // Codec paling stabil untuk browser
+        videoBitsPerSecond: 8000000 
     });
 
     let chunks = [];
@@ -80,42 +77,40 @@ startBtn.onclick = async () => {
         const blob = new Blob(chunks, { type: 'video/webm' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `reels-mulus.webm`;
+        a.download = `mulus-${Date.now()}.webm`;
         a.click();
-        statusEl.textContent = "Selesai! Cek Download.";
-        startBtn.disabled = false;
+        statusEl.textContent = "Selesai! Cek folder download.";
+        renderBtn.disabled = false;
         pCont.style.display = 'none';
     };
 
     recorder.start();
     const track = stream.getVideoTracks()[0];
     const fps = 30;
-    const duration = 5; // 5 detik video
+    const duration = 5; // Durasi tes
     const totalFrames = duration * fps;
 
-    // LOOP RENDER ASYNC (Ini yang bikin tidak diam saja)
     for (let i = 0; i <= totalFrames; i++) {
-        draw(i / fps);
+        const currentTime = i / fps;
+        draw(currentTime);
         
-        // Memaksa recorder menangkap frame ini
-        if (track.requestFrame) {
-            track.requestFrame();
-        }
+        // KRUSIAL: Ambil frame secara manual setelah gambar selesai
+        track.requestFrame();
 
-        // Update UI
+        // Update Progress
         let progress = (i / totalFrames) * 100;
         pBar.style.width = progress + "%";
-        statusEl.textContent = `Rendering: ${Math.round(progress)}%`;
+        statusEl.textContent = `Processing Frame: ${i}/${totalFrames}`;
 
-        // Memberi napas pada CPU iPad agar tidak macet
+        // JEDA: Memberi waktu iPad melakukan kompresi data (Anti-Lag)
         await new Promise(r => setTimeout(r, 40)); 
     }
 
-    statusEl.textContent = "Mengemas Video...";
+    statusEl.textContent = "Finalisasi file...";
     setTimeout(() => recorder.stop(), 500);
 };
 
-// Gambar tampilan awal
+// Preview awal
 draw(0);
 </script>
 </body>
