@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Reels Editor VP8 iPad Stable</title>
+<title>Reels Editor - iPad Pro Version</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{box-sizing:border-box;}
@@ -34,10 +34,10 @@ canvas{background:#808080;border-radius:18px;border:1px solid #4b5563;max-height
 <div class="field"><label>Judul</label><textarea id="title">Rahasia Menjadi Lebih Produktif</textarea></div>
 <div class="field"><label>Subjudul</label><textarea id="subtitle">Edisi Motivasi Pagi</textarea></div>
 <div class="field"><label>Isi</label><textarea id="body">Fokus pada [[satu hal]] setiap waktu.
-Konsistensi adalah [[kunci utama]].</textarea></div>
+Jangan biarkan distraksi mengganggu.</textarea></div>
 <div class="btn-row">
 <button class="btn-secondary" id="previewBtn">👁️ Preview</button>
-<button class="btn-primary" id="renderBtn">🎬 Render (Stable VP8)</button>
+<button class="btn-primary" id="renderBtn">🎬 Render (MP4 for iPad)</button>
 </div>
 <div class="status" id="status">Status: idle</div>
 <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
@@ -45,7 +45,6 @@ Konsistensi adalah [[kunci utama]].</textarea></div>
 <div class="panel right"><canvas id="canvas" width="1080" height="1920"></canvas></div>
 
 <script>
-// --- LOGIKA UTAMA TETAP SESUAI ASLINYA ---
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
 const progressBar=document.getElementById('progressBar');
@@ -67,9 +66,7 @@ const statusEl=document.getElementById('status');
 
 let animating=false,animStart=null;
 let targetDuration=12;
-let bodyPages=[];
-let pageDurations=[];
-let titleCanvas=null;
+let bodyPages=[], pageDurations=[], titleCanvas=null;
 let titleLayout={marginLeft:110,textWidth:830,upperLines:[],titleLines:[],subtitleLines:[]};
 
 const TITLE_PRE_HOLD=0.3; 
@@ -83,7 +80,7 @@ const HIGHLIGHT_LINE_DUR=0.8;
 function setStatus(t){ statusEl.textContent='Status: '+t; }
 function setProgress(p){ progressBar.style.width=(p*100)+"%"; }
 
-// --- FUNGSI DRAWING (SAMA SEPERTI FILE ASLI ANDA) ---
+// --- FUNGSI WRAP & TOKEN (Tetap sama) ---
 function wrapText(text,maxWidth,fontSpec){
 if(fontSpec)ctx.font=fontSpec;
 const paragraphs=text.split(/\r?\n/);
@@ -237,8 +234,8 @@ const elapsed=(ts-animStart)/1000;
 const progress=Math.min(elapsed/targetDuration,1);
 setProgress(progress);
 drawFrame(Math.min(elapsed,targetDuration));
-if(elapsed<targetDuration){ requestAnimationFrame(animate); }
-else{ animating=false; setStatus("idle"); }
+if(elapsed<targetDuration) requestAnimationFrame(animate);
+else { animating=false; setStatus("idle"); }
 }
 
 previewBtn.onclick=()=>{
@@ -246,27 +243,26 @@ recompute(); setStatus("preview"); setProgress(0);
 animStart=null; animating=true; requestAnimationFrame(animate);
 };
 
-// --- BAGIAN RENDER (DIOPTIMASI UNTUK IPAD) ---
+// --- RENDER KE MP4 (H.264) ---
 renderBtn.onclick=()=>{
 recompute(); setStatus("rendering"); setProgress(0);
-
-// CaptureStream 30fps murni
 const stream=canvas.captureStream(30);
 
-// Gunakan bitrate yang tidak terlalu tinggi tapi stabil
-const recorder=new MediaRecorder(stream,{
-  mimeType:'video/webm;codecs=vp8',
-  videoBitsPerSecond: 3000000 
-});
+// Cek apakah browser mendukung H.264, jika tidak fallback ke VP8
+let options = { mimeType: 'video/mp4;codecs=avc1.42E01E', videoBitsPerSecond: 4000000 };
+if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+    options = { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 4000000 };
+}
 
+const recorder=new MediaRecorder(stream, options);
 let chunks=[];
 recorder.ondataavailable=e=>{ if(e.data.size > 0) chunks.push(e.data); };
 
 recorder.onstop=()=>{
-  const blob=new Blob(chunks,{type:'video/webm'});
+  const blob=new Blob(chunks,{type: options.mimeType.split(';')[0]});
+  const extension = options.mimeType.includes('mp4') ? 'mp4' : 'webm';
   const a=document.createElement("a");
   
-  // Nama file unik: DDMMHHmmss
   const now = new Date();
   const ts = [
     String(now.getDate()).padStart(2, '0'),
@@ -277,26 +273,17 @@ recorder.onstop=()=>{
   ].join('');
 
   a.href=URL.createObjectURL(blob);
-  a.download=`reels-${ts}.webm`;
+  a.download=`reels-${ts}.${extension}`;
   a.click();
   setStatus("idle");
 };
 
-// PENTING: Gunakan timeslice 1000ms agar iPad mendapat info durasi berkala
 recorder.start(1000); 
-
-animStart=null; animating=true; 
-requestAnimationFrame(animate);
-
-// Memberi jeda ekstra di akhir render agar file tidak terpotong (Truncated)
-setTimeout(()=>{ 
-  recorder.stop(); 
-}, (targetDuration * 1000) + 1500); 
+animStart=null; animating=true; requestAnimationFrame(animate);
+setTimeout(()=>{ recorder.stop(); }, (targetDuration * 1000) + 1500);
 };
 
-window.onload=()=>{
-recompute(); drawFrame(0); setProgress(0);
-};
+window.onload=()=>{ recompute(); drawFrame(0); setProgress(0); };
 </script>
 </body>
 </html>
